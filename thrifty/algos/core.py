@@ -23,15 +23,18 @@ def count_vars(module):
 
 class MLPActor(nn.Module):
 
-    def __init__(self, obs_dim, act_dim, hidden_sizes, activation, act_limit):
+    def __init__(self, obs_dim, act_dim, hidden_sizes, activation, act_limit, device):
         super().__init__()
         pi_sizes = [obs_dim] + list(hidden_sizes) + [act_dim]
-        self.pi = mlp(pi_sizes, activation, nn.Tanh)
+        self.pi = nn.Linear(obs_dim, act_dim, bias=False)
+        # self.pi = mlp(pi_sizes, nn.Identity, nn.Identity)# activation, nn.Tanh)
         self.act_limit = act_limit
+        self.device = device
 
     def forward(self, obs):
         # Return output from network scaled to action space limits
-        return self.act_limit * self.pi(obs)
+        obs = torch.as_tensor(obs, dtype=torch.float32, device=self.device)
+        return self.pi(obs)#.detach().cpu().numpy()
 
 class CNNActor(nn.Module):
     def __init__(self, obs_dim, act_dim):
@@ -148,13 +151,13 @@ class MLP(nn.Module):
 
 class Ensemble(nn.Module):
     # Multiple policies
-    def __init__(self, observation_space, action_space, device, hidden_sizes=(256,256),
+    def __init__(self, obs_dim, act_dim, act_limit, device, hidden_sizes=(256,256), #observation_space, action_space, device, hidden_sizes=(256,256),
                  activation=nn.ReLU, num_nets=5):
         super().__init__()
 
-        obs_dim = observation_space.shape[0]
-        act_dim = action_space.shape[0]
-        act_limit = action_space.high[0]
+        # obs_dim = observation_space.shape[0]
+        # act_dim = action_space.shape[0]
+        # act_limit = action_space.high[0]
         self.num_nets = num_nets
         self.device = device
         # build policy and value functions

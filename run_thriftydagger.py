@@ -1,5 +1,5 @@
 # Script for running ThriftyDAgger
-from thrifty.algos.thriftydagger import thrifty, generate_offline_data
+from thrifty.algos.thriftydagger import thrifty, generate_offline_data, reach_thrifty
 from thrifty.algos.lazydagger import lazy
 from thrifty.utils.run_utils import setup_logger_kwargs
 import gym, torch
@@ -10,13 +10,14 @@ from robosuite import load_controller_config
 from robosuite.utils.input_utils import input2action
 from thrifty.utils.hardcoded_nut_assembly import HardcodedPolicy
 from thrifty.utils.hardcoded_pick_place import HardcodedPickPlacePolicy, HardcodedStochasticPickPlacePolicy
-from thrifty.utils.hardcoded_reach_2d import HardcodedReach2DPolicy, sample_reach
+from thrifty.utils.hardcoded_reach_2d import HardcodedReach2DPolicy, sample_pi_r, sample_reach
 from robosuite.wrappers import VisualizationWrapper
 from robosuite.wrappers import GymWrapper
-from robosuite.devices import Keyboard
+from robosuite.devices import Keyboard, device
 import numpy as np
 import sys
 import time
+import random
 
 class CustomWrapper(gym.Env):
 
@@ -67,6 +68,8 @@ class CustomWrapper(gym.Env):
             self.env.render()
 
 if __name__ == '__main__':
+    
+
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('exp_name', type=str)
@@ -74,6 +77,7 @@ if __name__ == '__main__':
     parser.add_argument('--device', type=int, default=-1)
     parser.add_argument('--gen_data', action='store_true', help="True if you want to collect offline human demos")
     parser.add_argument('--input_file', type=str, default='./data/testpickplace/testpickplace_s4/pick-place-data.pkl')
+    parser.add_argument('--input_file_2', type=str, default=None)
     parser.add_argument('--iters', type=int, default=5, help="number of DAgger-style iterations")
     parser.add_argument('--targetrate', type=float, default=0.01, help="target context switching rate")
     parser.add_argument('--environment', type=str, default="NutAssembly")
@@ -92,73 +96,82 @@ if __name__ == '__main__':
     parser.add_argument('--tau_auto', type=float, default=0.25)
     parser.add_argument('--num_bc_episodes', type=int, default=30)
     parser.add_argument('--expert_sim_style', type=int, default=0)
+    parser.add_argument('--reach_sampling_type', type=str, default='pi_h')
     args = parser.parse_args()
     render = not args.no_render
-
+    torch.manual_seed(args.seed)
+    np.random.seed(args.seed)
+    random.seed(args.seed)
     logger_kwargs = setup_logger_kwargs(args.exp_name, args.seed)
-    # setup env ...
-    controller_config = load_controller_config(default_controller='OSC_POSE')
-    config = {
-        "env_name": args.environment,
-        "robots": "UR5e",
-        "controller_configs": controller_config,
-    }
-
-    if args.environment == 'NutAssembly':
-        env = suite.make(
-            **config,
-            has_renderer=render,
-            has_offscreen_renderer=False,
-            render_camera="agentview",
-            single_object_mode=2, # env has 1 nut instead of 2
-            nut_type="round",
-            ignore_done=True,
-            use_camera_obs=False,
-            reward_shaping=True,
-            control_freq=20,
-            hard_reset=True,
-            use_object_obs=True
-        )
-    elif args.environment == 'PickPlace':
-        env = suite.make(
-            **config,
-            has_renderer=render,
-            has_offscreen_renderer=False,
-            render_camera="agentview",
-            single_object_mode=2,
-            object_type='cereal',
-            ignore_done=True,
-            use_camera_obs=False,
-            reward_shaping=True,
-            control_freq=20,
-            hard_reset=True,
-            use_object_obs=True
-        )
+    if args.environment == 'Reach2D':
+        env = None
+        robosuite_cfg = None
     else:
-        env = suite.make(
-            **config,
-            has_renderer=render,
-            has_offscreen_renderer=False,
-            render_camera="agentview",
-            ignore_done=True,
-            use_camera_obs=False,
-            reward_shaping=True,
-            control_freq=20,
-            hard_reset=True,
-            use_object_obs=True
-        )
-    env = GymWrapper(env)
-    env = VisualizationWrapper(env, indicator_configs=None)
-    env = CustomWrapper(env, render=render)
+        # setup env ...
+        controller_config = load_controller_config(default_controller='OSC_POSE')
+        config = {
+            "env_name": args.environment,
+            "robots": "UR5e",
+            "controller_configs": controller_config,
+        }
 
-    arm_ = 'right'
-    config_ = 'single-arm-opposed'
-    input_device = Keyboard(pos_sensitivity=0.5, rot_sensitivity=3.0)
-    if render:
-        env.viewer.add_keypress_callback("any", input_device.on_press)
-        env.viewer.add_keyup_callback("any", input_device.on_release)
-        env.viewer.add_keyrepeat_callback("any", input_device.on_press)
-    active_robot = env.robots[arm_ == 'left']
+        if args.environment == 'NutAssembly':
+            env = suite.make(
+                **config,
+                has_renderer=render,
+                has_offscreen_renderer=False,
+                render_camera="agentview",
+                single_object_mode=2, # env has 1 nut instead of 2
+                nut_type="round",
+                ignore_done=True,
+                use_camera_obs=False,
+                reward_shaping=True,
+                control_freq=20,
+                hard_reset=True,
+                use_object_obs=True
+            )
+        elif args.environment == 'PickPlace':
+            env = suite.make(
+                **config,
+                has_renderer=render,
+                has_offscreen_renderer=False,
+                render_camera="agentview",
+                single_object_mode=2,
+                object_type='cereal',
+                ignore_done=True,
+                use_camera_obs=False,
+                reward_shaping=True,
+                control_freq=20,
+                hard_reset=True,
+                use_object_obs=True
+            )
+        else:
+            env = suite.make(
+                **config,
+                has_renderer=render,
+                has_offscreen_renderer=False,
+                render_camera="agentview",
+                ignore_done=True,
+                use_camera_obs=False,
+                reward_shaping=True,
+                control_freq=20,
+                hard_reset=True,
+                use_object_obs=True
+            )
+        env = GymWrapper(env)
+        env = VisualizationWrapper(env, indicator_configs=None)
+        env = CustomWrapper(env, render=render)
+
+        arm_ = 'right'
+        config_ = 'single-arm-opposed'
+        input_device = Keyboard(pos_sensitivity=0.5, rot_sensitivity=3.0)
+        if render:
+            env.viewer.add_keypress_callback("any", input_device.on_press)
+            env.viewer.add_keyup_callback("any", input_device.on_release)
+            env.viewer.add_keyrepeat_callback("any", input_device.on_press)
+        active_robot = env.robots[arm_ == 'left']
+        robosuite_cfg = {'MAX_EP_LEN': 200, 'INPUT_DEVICE': input_device}
+        
 
     def hg_dagger_wait():
         # for HG-dagger, repurpose the 'Z' key (action elem 3) for starting/ending interaction
@@ -194,7 +207,6 @@ if __name__ == '__main__':
             time.sleep(0.001)
         return a
     
-    robosuite_cfg = {'MAX_EP_LEN': 200, 'INPUT_DEVICE': input_device}
     os.makedirs(logger_kwargs['output_dir'], exist_ok=True)
     args.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu').index
     robosuite = True
@@ -207,17 +219,36 @@ if __name__ == '__main__':
             else:
                 expert_pol = HardcodedPickPlacePolicy(env).act
         elif args.environment == 'Reach2D':
-            expert_pol = HardcodedReach2DPolicy(env, style=args.expert_sim_style).act
+            expert_pol = HardcodedReach2DPolicy(obj_loc=np.zeros(2), sim_style=args.expert_sim_style).act
             robosuite = False
     if args.gen_data:
     	num_bc_episodes = args.num_bc_episodes
     	out_file = os.path.join(logger_kwargs['output_dir'], f'{args.gen_data_output}-{num_bc_episodes}.pkl')
-        if args.environment == 'Reach2D':
-            demos = sample_reach(num_bc_episodes)
-            pickle.dump(demos, open(out_file, "wb"))
-        else:
-            generate_offline_data(env, expert_policy=expert_pol, num_episodes=num_bc_episodes, seed=args.seed,
-                output_file=out_file, robosuite=robosuite, robosuite_cfg=robosuite_cfg, stochastic_expert=args.stochastic_expert)
+    	if args.environment == 'Reach2D':
+            print(args.reach_sampling_type)
+            print(out_file)
+            if args.reach_sampling_type == 'pi_h':
+                demos = sample_reach(num_bc_episodes)
+                pickle.dump(demos, open(out_file, "wb"))
+            elif args.reach_sampling_type in ['pi_r', 'pi_r_noisy']:
+                if args.input_file_2 is None:
+                    demos = sample_pi_r(num_bc_episodes, model_path=args.eval, expert_pol=expert_pol, 
+                                        device=torch.device("cuda" if torch.cuda.is_available() else "cpu"), add_noise=(args.reach_sampling_type == 'pi_r_noisy'))
+                    pickle.dump(demos, open(out_file, "wb"))
+                else:
+                    np.random.seed(args.seed)
+                    perc_demos_1 = 0.8
+                    demos_1 = np.array(pickle.load(open(args.input_file, 'rb')))
+                    demos_2 = np.array(pickle.load(open(args.input_file_2, 'rb')))
+                    idxs1 = np.random.permutation(np.arange(len(demos_1)))
+                    idxs2 = np.random.permutation(np.arange(len(demos_2)))
+                    demos_1 = demos_1[idxs1]
+                    demos_2 = demos_2[idxs2]
+                    demos = np.concatenate([demos_1[:int(perc_demos_1) * len(demos_1)], demos_2[:(len(demos_1) -int(perc_demos_1) * len(demos_1))]])
+                    pickle.dump(demos, open(out_file, "wb"))
+                    args.input_file = out_file
+    	else:
+            generate_offline_data(env, expert_policy=expert_pol, num_episodes=num_bc_episodes, seed=args.seed,output_file=out_file, robosuite=robosuite, robosuite_cfg=robosuite_cfg, stochastic_expert=args.stochastic_expert)
     if args.hgdagger:
         thrifty(env, iters=args.iters, logger_kwargs=logger_kwargs, device_idx=args.device, target_rate=args.targetrate, 
             seed=args.seed, expert_policy=expert_pol, input_file=args.input_file, robosuite=robosuite, 
@@ -229,8 +260,8 @@ if __name__ == '__main__':
          seed=args.seed, expert_policy=expert_pol, input_file=args.input_file, robosuite=robosuite, 
            robosuite_cfg=robosuite_cfg, init_model=args.eval, num_test_episodes=args.num_test_episodes, test_intervention_eps=args.test_intervention_eps, stochastic_expert=args.stochastic_expert, algo_sup=args.algo_sup,
            tau_auto=args.tau_auto, tau_sup=args.tau_sup)
-    else:
-        thrifty(env, iters=args.iters, logger_kwargs=logger_kwargs, device_idx=args.device, target_rate=args.targetrate, 
+    elif args.environment == 'Reach2D':
+        reach_thrifty(iters=args.iters, logger_kwargs=logger_kwargs, device_idx=args.device, target_rate=args.targetrate, 
          	seed=args.seed, expert_policy=expert_pol, input_file=args.input_file, robosuite=robosuite, 
             robosuite_cfg=robosuite_cfg, q_learning=True, init_model=args.eval, bc_only=args.bc_only, 
             num_test_episodes=args.num_test_episodes, test_intervention_eps=args.test_intervention_eps, 
