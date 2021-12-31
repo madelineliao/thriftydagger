@@ -1,16 +1,21 @@
 import pickle
 
 import numpy as np
+import os
+import pickle
 import torch
 
 from datasets.buffer import BufferDataset
 
 
-def get_dataset(data_path, N):
+def get_dataset(data_path, N, save_dir):
     data = load_data_from_file(data_path, N)
-    train = BufferDataset(data, split="train")
-    val = BufferDataset(data, split="val")
-
+    # TODO
+    print(f'saving to: ', os.path.join(save_dir, 'train_data.pkl'))
+    pickle.dump(data, open(os.path.join(save_dir, 'train_data.pkl'), 'wb'))
+    train = BufferDataset(data, split='train')
+    val = BufferDataset(data, split='val')
+    
     return train, val
 
 
@@ -21,8 +26,9 @@ def load_data_from_file(file_path, N, shuffle=True):
 
     N_available = len(data)
     if N < N_available:
-        idxs = torch.randperm(len(data))
-        data = data[idxs]
+        if shuffle:
+            idxs = torch.randperm(len(data))
+            data = data[idxs]
         data = data[:N]
     elif N > N_available:
         print(

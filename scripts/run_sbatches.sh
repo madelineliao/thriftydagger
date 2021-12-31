@@ -1,6 +1,6 @@
 #!/bin/bash
 
-for experiment in /iliad/u/madeline/thriftydagger/scripts/vary_N/train/*/*.sh 
+for experiment in /iliad/u/madeline/thriftydagger/scripts/generate_reach2d_random_start_data/*.sh 
 do
     echo $experiment
     chmod u+x $experiment

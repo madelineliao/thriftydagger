@@ -12,7 +12,6 @@ from datasets.util import get_dataset
 from environments import Reach2D
 from util import get_model_type_and_kwargs, init_model, setup_robosuite
 
-
 def parse_args():
     parser = argparse.ArgumentParser()
 
@@ -65,6 +64,7 @@ def parse_args():
         "--robosuite", action="store_true", help="Whether or not the environment is a Robosuite environment"
     )
     parser.add_argument("--no_render", action="store_true", help="If true, Robosuite rendering is skipped.")
+    parser.add_argument('--random_start_state', action='store_true', help='Random start state for Reach2D environment')
 
     # Method / Model details
     parser.add_argument(
@@ -142,7 +142,7 @@ def main(args):
 
     elif args.environment == "Reach2D":
         max_traj_len = REACH2D_MAX_TRAJ_LEN
-        env = Reach2D(device)
+        env = Reach2D(device, random_start_state=args.random_start_state)
         robosuite_cfg = None
         obs_dim = env.obs_dim
         act_dim = env.act_dim
@@ -176,7 +176,7 @@ def main(args):
             max_traj_len=max_traj_len,
             beta=args.dagger_beta,
             use_indicator_beta=args.use_indicator_beta,
-            max_num_labels=args.N,
+            max_num_labels=1e6, #TODO
         )
     elif args.method == "HGDagger":
         algorithm = HGDagger(model, model_kwargs, device=device, save_dir=save_dir, max_traj_len=max_traj_len)

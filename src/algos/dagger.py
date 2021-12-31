@@ -1,4 +1,5 @@
-import numpy as np
+import os
+import pickle
 import torch
 from torch.utils.data import DataLoader
 
@@ -43,11 +44,12 @@ class Dagger(BaseAlgorithm):
                     a_target = self._expert_pol(curr_obs, env, robosuite_cfg).detach()
                     a = self.beta * a_target + (1 - self.beta) * self.model(curr_obs).detach()
                     self.num_labels += 1
+                    act.append(a_target.cpu())
                 else:
                     a = self.model(curr_obs).detach()
+                    act.append(a.cpu())
                 next_obs, _, _, _ = env.step(a)
-                obs.append(curr_obs)
-                act.append(a_target)
+                obs.append(curr_obs.cpu())
                 traj_length += 1
                 if not success:
                     success = env._check_success()
@@ -55,11 +57,16 @@ class Dagger(BaseAlgorithm):
             demo = {"obs": obs, "act": act, "success": success}
             data.append(demo)
             env.close()
-
-            if self.num_labels < self.max_num_labels:
+            
+            if self.num_labels > self.max_num_labels:
                 break
 
         return data
+
+    def _save_data(self, data, epoch):
+        save_path = os.path.join(self.save_dir, f'data_epoch{epoch}.pkl')
+        with open(save_path, 'wb') as f:
+            pickle.dump(data, f)
 
     def run(self, train_data, val_data, args, env, robosuite_cfg) -> None:
         # For DAgger, initial training dataset should be empty before first iteration
@@ -77,6 +84,7 @@ class Dagger(BaseAlgorithm):
                     for (obs, act) in zip(demo["obs"], demo["act"]):
                         train_data.update_buffer(obs, act)
                 train_loader = DataLoader(train_data, batch_size=args.batch_size, shuffle=True)
+                self._save_data(new_data, epoch) 
 
             # If max number of expert labels exceeded, break
             if self.num_labels > self.max_num_labels:
