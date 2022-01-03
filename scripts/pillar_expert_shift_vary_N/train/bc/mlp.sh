@@ -1,12 +1,12 @@
 #!/bin/bash
 ARCH=MLP
-DATA_SOURCES=(oracle pi_r oracle_pi_r_mix)
-DATE=jan2
-ENVIRONMENT=Reach2D
+DATA_SOURCES=(oracle_under oracle_over)
+DATE=jan3
+ENVIRONMENT=Reach2DPillar
 METHOD=BC
 NS=(50 100 200 300 400 500 750 1000)
 NUM_MODELS=1
-SEED=4
+SEED=2
 
 if [ $NUM_MODELS -gt 1 ]
 then

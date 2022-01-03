@@ -1,6 +1,7 @@
 #!/bin/bash
-ENVIRONMENT=Reach2D
+ENVIRONMENT=Reach2DPillar
 N=1000
+POLICY_MODE=over
 SAMPLE_MODE=oracle
 SEED=0
 
@@ -9,5 +10,7 @@ python ./src/generate_data.py \
     --environment $ENVIRONMENT \
     --N_trajectories $N \
     --seed $SEED \
-    --save_fname $SAMPLE_MODE.pkl \
-    --sample_mode $SAMPLE_MODE 
+    --save_fname $SAMPLE_MODE\_$POLICY_MODE.pkl \
+    --sample_mode $SAMPLE_MODE \
+    --policy_mode $POLICY_MODE \
+    --overwrite

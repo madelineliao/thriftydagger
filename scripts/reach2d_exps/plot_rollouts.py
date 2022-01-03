@@ -9,10 +9,10 @@ NS=[50, 100, 200, 300, 400, 500, 750, 1000]
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--arch', type=str, default='MLP')
-    parser.add_argument('--ckpt_file', type=str, default='model_4.pt')
-    parser.add_argument('--data_source', type=str, default='oracle')
-    parser.add_argument('--date', type=str, default='dec29')
-    parser.add_argument('--environment', type=str, default='Reach2D')
+    parser.add_argument('--ckpt_file', type=str, default='model_best.pt')
+    parser.add_argument('--data_source', type=str, default='oracle_under')
+    parser.add_argument('--date', type=str, default='jan2')
+    parser.add_argument('--environment', type=str, default='Reach2DPillar')
     parser.add_argument('--method', type=str, default='BC')
     parser.add_argument('--num_rollouts', type=int, default=20)
     parser.add_argument('--num_models', type=int, default=1)
@@ -49,7 +49,7 @@ def main(args):
 
             plt.title(f'{args.method} w/ {exp_name_arch} Auto-Only Rollout')
             plt.legend()
-            save_path = f'./out/{args.date}/{args.environment}/{args.method}/{exp_name_arch}/eval/N{N}_rollout{i}.png'
+            save_path = os.path.join(exp_dir, f'N{N}_rollout{i}.png')
             plt.savefig(save_path)
             print(f'Plot saved to {save_path}')
             plt.clf()

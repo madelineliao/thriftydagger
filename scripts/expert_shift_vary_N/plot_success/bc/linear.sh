@@ -1,7 +1,7 @@
 #!/bin/bash
-ARCH=MLP
-CHECKPOINT_FILE=model_best.pt
-DATE=jan2
+ARCH=LinearModel
+CHECKPOINT_FILE=model_4.pt
+DATE=dec28
 ENVIRONMENT=Reach2D
 METHOD=BC
 NUM_MODELS=1

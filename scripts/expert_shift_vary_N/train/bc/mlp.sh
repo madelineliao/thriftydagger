@@ -1,6 +1,6 @@
 #!/bin/bash
 ARCH=MLP
-DATA_SOURCES=(oracle pi_r oracle_pi_r_mix)
+DATA_SOURCES=(oracle_mix_20_80)
 DATE=jan2
 ENVIRONMENT=Reach2D
 METHOD=BC

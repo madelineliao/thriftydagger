@@ -1,9 +1,9 @@
 #!/bin/bash
 ARCH=MLP
-CHECKPOINT_FILE=model_best.pt
-DATE=jan2
+CHECKPOINT_FILE=model_4.pt
+DATE=dec29
 ENVIRONMENT=Reach2D
-METHOD=BC
+METHOD=Dagger
 NUM_MODELS=1
 SEED=4
 

@@ -9,7 +9,7 @@ import torch
 from algos import BC, Dagger, HGDagger
 from constants import PICKPLACE_MAX_TRAJ_LEN, REACH2D_MAX_TRAJ_LEN
 from datasets.util import get_dataset
-from environments import Reach2D
+from envs import Reach2D, Reach2DPillar
 from util import get_model_type_and_kwargs, init_model, setup_robosuite
 
 def parse_args():
@@ -132,22 +132,24 @@ def main(args):
     # Set up environment
     if args.robosuite:
         if args.environment == "PickPlace":
-            max_traj_len = PICKPLACE_MAX_TRAJ_LEN
+            env, robosuite_cfg = setup_robosuite(args, max_traj_len=PICKPLACE_MAX_TRAJ_LEN)
+            obs_dim = env.observation_space.shape[0]
+            act_dim = env.action_space.shape[0]
+            act_limit = env.action_space.high[0]
         else:
-            raise NotImplementedError(f"Max trajectory length not yet defined for the environment {args.environment}!")
-        env, robosuite_cfg = setup_robosuite(args, max_traj_len)
-        obs_dim = env.observation_space.shape[0]
-        act_dim = env.action_space.shape[0]
-        act_limit = env.action_space.high[0]
-
+            raise NotImplementedError(f"Environment {args.environment} has not been implemented yet!")
     elif args.environment == "Reach2D":
-        max_traj_len = REACH2D_MAX_TRAJ_LEN
-        env = Reach2D(device, random_start_state=args.random_start_state)
+        env = Reach2D(device, max_ep_len=REACH2D_MAX_TRAJ_LEN, random_start_state=args.random_start_state)
         robosuite_cfg = None
         obs_dim = env.obs_dim
         act_dim = env.act_dim
         act_limit = float("inf")
-
+    elif args.environment == "Reach2DPillar":
+        env = Reach2DPillar(device, max_ep_len=REACH2D_MAX_TRAJ_LEN, random_start_state=args.random_start_state)
+        robosuite_cfg = None
+        obs_dim = env.obs_dim
+        act_dim = env.act_dim
+        act_limit = float("inf")
     else:
         raise NotImplementedError(f"Environment {args.environment} has not been implemented yet!")
 
@@ -173,15 +175,14 @@ def main(args):
             model_kwargs,
             device=device,
             save_dir=save_dir,
-            max_traj_len=max_traj_len,
             beta=args.dagger_beta,
             use_indicator_beta=args.use_indicator_beta,
             max_num_labels=1e6, #TODO
         )
     elif args.method == "HGDagger":
-        algorithm = HGDagger(model, model_kwargs, device=device, save_dir=save_dir, max_traj_len=max_traj_len)
+        algorithm = HGDagger(model, model_kwargs, device=device, save_dir=save_dir)
     elif args.method == "BC":
-        algorithm = BC(model, model_kwargs, device=device, save_dir=save_dir, max_traj_len=max_traj_len)
+        algorithm = BC(model, model_kwargs, device=device, save_dir=save_dir)
     else:
         raise NotImplementedError(f"Method {args.method} has not been implemented yet!")
 
@@ -189,7 +190,7 @@ def main(args):
     if args.eval_only:
         algorithm.eval_auto(args, env=env, robosuite_cfg=robosuite_cfg)
     else:
-        train, val = get_dataset(args.data_path, args.N)
+        train, val = get_dataset(args.data_path, args.N, save_dir)
         algorithm.run(train, val, args, env=env, robosuite_cfg=robosuite_cfg)
 
 

@@ -1,11 +1,11 @@
 #!/bin/bash
 ARCH=MLP
 DATA_SOURCES=(oracle pi_r oracle_pi_r_mix)
-DATE=jan2
+DATE=dec28
 ENVIRONMENT=Reach2D
-METHOD=BC
+METHOD=Dagger
 NS=(50 100 200 300 400 500 750 1000)
-NUM_MODELS=1
+NUM_MODELS=5
 SEED=4
 
 if [ $NUM_MODELS -gt 1 ]
@@ -28,6 +28,7 @@ do
             --arch $ARCH \
             --num_models $NUM_MODELS \
             --seed $SEED \
-            --overwrite
+            --use_indicator_beta \
+            --dagger_beta 1.0
     done
 done

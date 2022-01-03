@@ -1,10 +1,10 @@
 #!/bin/bash
 ARCH=MLP
-CHECKPOINT_FILE=model_best.pt
-DATE=jan2
+CHECKPOINT_FILE=model_4.pt
+DATE=dec28
 ENVIRONMENT=Reach2D
 METHOD=BC
-NUM_MODELS=1
+NUM_MODELS=5
 SEED=4
 
 python scripts/reach2d_exps/plot_success_rate.py \

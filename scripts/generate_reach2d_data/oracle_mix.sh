@@ -1,7 +1,8 @@
 #!/bin/bash
 ENVIRONMENT=Reach2D
 N=1000
-SAMPLE_MODE=oracle
+POLICY_MODE=right_up
+SAMPLE_MODE=oracle_mix
 SEED=0
 
 python ./src/generate_data.py \
@@ -9,5 +10,6 @@ python ./src/generate_data.py \
     --environment $ENVIRONMENT \
     --N_trajectories $N \
     --seed $SEED \
-    --save_fname $SAMPLE_MODE.pkl \
-    --sample_mode $SAMPLE_MODE 
+    --save_fname oracle_mix.pkl \
+    --sample_mode $SAMPLE_MODE \
+    --policy_mode $POLICY_MODE

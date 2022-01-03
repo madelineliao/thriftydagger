@@ -1,6 +1,7 @@
 #!/bin/bash
 ARCH=MLP
-DATA_SOURCES=(oracle pi_r oracle_pi_r_mix)
+CHECKPOINT_FILE=model_best.pt
+DATA_SOURCES=(oracle_mix_20_80)
 DATE=jan2
 ENVIRONMENT=Reach2D
 METHOD=BC
@@ -21,7 +22,9 @@ do
     do
         python src/main.py \
             --N $N \
-            --exp_name $DATE/$ENVIRONMENT/$METHOD/$EXP_NAME_ARCH/$DATA_SOURCE\_N$N\_seed$SEED \
+            --eval_only \
+            --model_path ./out/$DATE/$ENVIRONMENT/$METHOD/$EXP_NAME_ARCH/$DATA_SOURCE\_N$N\_seed$SEED/$CHECKPOINT_FILE \
+            --exp_name $DATE/$ENVIRONMENT/$METHOD/$EXP_NAME_ARCH/eval/$DATA_SOURCE\_N$N\_seed$SEED \
             --data_path ./data/$ENVIRONMENT/$DATA_SOURCE.pkl \
             --environment $ENVIRONMENT \
             --method $METHOD \

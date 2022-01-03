@@ -12,7 +12,6 @@ class Dagger(BaseAlgorithm):
         model,
         model_kwargs,
         save_dir,
-        max_traj_len,
         device,
         lr=1e-3,
         optimizer=torch.optim.Adam,
@@ -21,7 +20,7 @@ class Dagger(BaseAlgorithm):
         max_num_labels=1000,
     ) -> None:
 
-        super().__init__(model, model_kwargs, save_dir, max_traj_len, device, lr=lr, optimizer=optimizer)
+        super().__init__(model, model_kwargs, save_dir, device, lr=lr, optimizer=optimizer)
 
         self.use_indicator_beta = use_indicator_beta
         self.beta = self._init_beta(beta)
@@ -36,10 +35,11 @@ class Dagger(BaseAlgorithm):
     def _rollout(self, env, robosuite_cfg, trajectories_per_rollout, auto_only=False):
         data = []
         for j in range(trajectories_per_rollout):
-            curr_obs, traj_length = env.reset(), 0
-            success = False
+            curr_obs = env.reset()
+            done = False
+            reached_success = False
             obs, act = [], []
-            while traj_length <= self.max_traj_len and self.num_labels < self.max_num_labels:
+            while not done and self.num_labels < self.max_num_labels:
                 if not auto_only:
                     a_target = self._expert_pol(curr_obs, env, robosuite_cfg).detach()
                     a = self.beta * a_target + (1 - self.beta) * self.model(curr_obs).detach()
@@ -48,17 +48,21 @@ class Dagger(BaseAlgorithm):
                 else:
                     a = self.model(curr_obs).detach()
                     act.append(a.cpu())
-                next_obs, _, _, _ = env.step(a)
+                next_obs, success, done, _ = env.step(a)
                 obs.append(curr_obs.cpu())
-                traj_length += 1
-                if not success:
-                    success = env._check_success()
+                
+                # Document whether or not success was reached, but continue
+                # rolling out until done (DAgger rolls out until max trajectory length
+                # is reached, not until success is reached)
+                if success:
+                    reached_success = True
                 curr_obs = next_obs
-            demo = {"obs": obs, "act": act, "success": success}
+            
+            demo = {"obs": obs, "act": act, "success": reached_success}
             data.append(demo)
             env.close()
             
-            if self.num_labels > self.max_num_labels:
+            if self.num_labels >= self.max_num_labels:
                 break
 
         return data
