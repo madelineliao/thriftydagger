@@ -6,20 +6,28 @@ from constants import REACH2D_ACT_DIM, REACH2D_PILLAR_OBS_DIM, REACH2D_SUCCESS_T
 
 
 class Pillar:
-    def __init__(self, height, width, start, goal) -> None:
+    def __init__(self, height, width, start, goal, fixed=False) -> None:
         # Set dimensions
         self.height = height
         self.width = width
         
         # Set location (self.x, self.y = upper left corner coordinates)
-        # Pillar is centered at the midpoint of start and goal
+        # Pillar is centered at the midpoint of start and goal if fixed == False,
+        # else centered at (1.5, 1.5) (center of quadrant we're using)
+        self.fixed = fixed
         self.x, self.y = self._init_loc(start, goal)
         self.loc = torch.tensor([self.x, self.y])
         
     def _init_loc(self, start, goal):
-        center = (start + goal) / 2
-        x = center[0] - self.width / 2
-        y = center[1] + self.height / 2
+        if not self.fixed:
+            center = (start + goal) / 2
+            x = center[0] - self.width / 2
+            y = center[1] + self.height / 2
+        else:
+            # TODO: hardcoding for now
+            center = [1.5, 1.5]
+            x = center[0] - self.width / 2
+            y = center[1] + self.height / 2
         
         return x, y
     
@@ -32,7 +40,7 @@ class Pillar:
 
 class Reach2DPillar:
     def __init__(self, device, max_ep_len, grid=None, pillar_height=1.0, pillar_width=1.0, 
-                 random_start_state=False, range_x=3.0, range_y=3.0):
+                 fixed=False, random_start_state=False, range_x=3.0, range_y=3.0):
         self.device = device
         self.max_ep_len = max_ep_len
         self.random_start_state = random_start_state
@@ -40,6 +48,7 @@ class Reach2DPillar:
         self.grid = grid
         self.pillar_height = pillar_height
         self.pillar_width = pillar_width
+        self.fixed = fixed
         
         self.range_x = range_x
         self.range_y = range_y
@@ -59,7 +68,7 @@ class Reach2DPillar:
             self.curr_state = self._init_start_state() 
             self.goal_state = self._init_goal_state()
             
-            self.pillar = Pillar(self.pillar_height, self.pillar_width, self.curr_state, self.goal_state)
+            self.pillar = Pillar(self.pillar_height, self.pillar_width, self.curr_state, self.goal_state, fixed=self.fixed)
             
             valid = not (self.pillar.overlaps(self.curr_state) or self.pillar.overlaps(self.goal_state))
         return self.curr_state, self.goal_state, self.pillar

@@ -1,16 +1,17 @@
 #!/bin/bash
 ARCH=MLP
-CHECKPOINT_FILE=model_4.pt
-DATE=dec28
-ENVIRONMENT=Reach2D
-METHOD=Dagger
-NUM_MODELS=5
+CHECKPOINT_FILE=model_best.pt
+DATA_SOURCE=pillar
+DATE=jan3
+ENVIRONMENT=Reach2DPillar
+METHOD=BC
+NUM_MODELS=1
 SEED=4
 
-
-python scripts/reach2d_exps/plot_success_rate.py \
+python scripts/plot_success_rate.py \
     --arch $ARCH \
     --ckpt_file $CHECKPOINT_FILE \
+    --data_source $DATA_SOURCE \
     --date $DATE \
     --environment $ENVIRONMENT \
     --method $METHOD \

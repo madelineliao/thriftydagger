@@ -3,17 +3,20 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import pickle
-# DATA_SOURCES = ['oracle', 'pi_r', 'oracle_pi_r_mix']
-# DATA_SOURCES = ['oracle_up_right', 'oracle_right_up', 'oracle_mix', 'oracle_mix_20_80']
-DATA_SOURCES = ['oracle_over', 'oracle_under']
-TRAIN_SEEDS = [0, 2, 4]
-NS=[50, 100, 200, 300, 400, 500, 750, 1000]
+
+
+FIXED_PILLAR_DATA_SOURCES = ['oracle_fixed_pillar_over', 'oracle_fixed_pillar_under']
+PILLAR_DATA_SOURCES = ['oracle_over', 'oracle_under']
+
+TRAIN_SEEDS = [0, 2]#, 4]
+NS=[50, 100]#, 200, 300, 400, 500, 750, 1000]
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--arch', type=str, default='LinearModel')
     parser.add_argument('--ckpt_file', type=str, default='model_4.pt')
+    parser.add_argument('--data_source', type=str, help="One of [fixed_pillar, pillar]")
     parser.add_argument('--date', type=str, default='dec28')
     parser.add_argument('--environment', type=str, default='Reach2D')
     parser.add_argument('--method', type=str, default='BC')
@@ -26,7 +29,13 @@ def parse_args():
 
 def main(args):
     exp_name_arch = args.arch if args.num_models == 1 else 'Ensemble' + args.arch
-    for data_source in DATA_SOURCES:
+    if args.data_source == "fixed_pillar":
+        data_sources = FIXED_PILLAR_DATA_SOURCES 
+    elif args.data_source == "pillar":
+        data_sources = PILLAR_DATA_SOURCES
+    else:
+        raise NotImplementedError
+    for data_source in data_sources:
         seed_successes = []
         for N in NS:
             successes = []
@@ -48,7 +57,7 @@ def main(args):
     plt.ylim(0, 105)
     plt.title(f'{args.method} w/ {exp_name_arch} Auto-Only Rollout')
     plt.legend()
-    save_path = f'./out/{args.date}/{args.environment}/{args.method}/{exp_name_arch}/eval/successes_vs_N.png'
+    save_path = f'./out/{args.date}/{args.environment}/{args.method}/{exp_name_arch}/eval/{args.data_source}_successes_vs_N.png'
     plt.savefig(save_path)
     print(f'Plot saved to {save_path}')
 

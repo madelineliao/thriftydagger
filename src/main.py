@@ -145,7 +145,8 @@ def main(args):
         act_dim = env.act_dim
         act_limit = float("inf")
     elif args.environment == "Reach2DPillar":
-        env = Reach2DPillar(device, max_ep_len=REACH2D_MAX_TRAJ_LEN, random_start_state=args.random_start_state)
+        fixed = 'fixed' in args.data_path
+        env = Reach2DPillar(device, max_ep_len=REACH2D_MAX_TRAJ_LEN, random_start_state=args.random_start_state, fixed=fixed)
         robosuite_cfg = None
         obs_dim = env.obs_dim
         act_dim = env.act_dim

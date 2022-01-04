@@ -10,7 +10,7 @@ from envs import Reach2D
 from src.envs.reach2d_pillar import Reach2DPillar
 from src.envs.grid import Grid
 from policies.reach2d import straight_line_policy, up_right_policy, right_up_policy
-from policies.reach2d_pillar import over_policy, under_policy
+from policies.reach2d_pillar import over_policy, under_policy, fixed_pillar_over_policy, fixed_pillar_under_policy
 from util import get_model_type_and_kwargs, init_model
 
 
@@ -156,6 +156,7 @@ def sample_pi_r(N_trajectories, random_start_state, model, max_traj_len, range_x
 def sample_reach_pillar(N_trajectories, device, random_start_state, policy_mode, range_x=3.0, range_y=3.0):
     demos = []
     grid = None
+    fixed = False
     if  policy_mode == "over":
         policy = over_policy
         x_ticks = int(range_x / REACH2D_ACT_MAGNITUDE) + 1
@@ -166,11 +167,23 @@ def sample_reach_pillar(N_trajectories, device, random_start_state, policy_mode,
         x_ticks = int(range_x / REACH2D_ACT_MAGNITUDE) + 1
         y_ticks = int(range_y / REACH2D_ACT_MAGNITUDE) + 1
         grid = Grid(x1=0, x2=range_x, y1=0, y2=range_y, x_ticks=x_ticks, y_ticks=y_ticks, omitted_shape=None)
+    elif policy_mode == "fixed_pillar_over":
+        policy = fixed_pillar_over_policy
+        x_ticks = int(range_x / REACH2D_ACT_MAGNITUDE) + 1
+        y_ticks = int(range_y / REACH2D_ACT_MAGNITUDE) + 1
+        grid = Grid(x1=0, x2=range_x, y1=0, y2=range_y, x_ticks=x_ticks, y_ticks=y_ticks, omitted_shape=None)
+        fixed = True
+    elif policy_mode == "fixed_pillar_under":
+        policy = fixed_pillar_under_policy
+        x_ticks = int(range_x / REACH2D_ACT_MAGNITUDE) + 1
+        y_ticks = int(range_y / REACH2D_ACT_MAGNITUDE) + 1
+        grid = Grid(x1=0, x2=range_x, y1=0, y2=range_y, x_ticks=x_ticks, y_ticks=y_ticks, omitted_shape=None)
+        fixed = True
     else:
         raise NotImplementedError(f"Policy mode {policy_mode} has not been implemented yet for Reach2D Pillar!")
     
     env = Reach2DPillar(device, max_ep_len=REACH2D_MAX_TRAJ_LEN, grid=grid, random_start_state=random_start_state, 
-                    range_x=range_x, range_y=range_y)
+                    range_x=range_x, range_y=range_y, fixed=fixed)
     
     for _ in range(N_trajectories):
         curr_obs = env.reset()

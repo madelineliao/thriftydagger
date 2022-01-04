@@ -1,8 +1,9 @@
 #!/bin/bash
 ARCH=MLP
 DATA_SOURCES=(oracle pi_r oracle_pi_r_mix)
-DATE=jan2
+DATE=jan3_hidden20
 ENVIRONMENT=Reach2D
+HIDDEN_SIZE=20
 METHOD=BC
 NS=(50 100 200 300 400 500 750 1000)
 NUM_MODELS=1
@@ -24,6 +25,7 @@ do
             --exp_name $DATE/$ENVIRONMENT/$METHOD/$EXP_NAME_ARCH/$DATA_SOURCE\_N$N\_seed$SEED \
             --data_path ./data/$ENVIRONMENT/$DATA_SOURCE.pkl \
             --environment $ENVIRONMENT \
+            --hidden_size $HIDDEN_SIZE \
             --method $METHOD \
             --arch $ARCH \
             --num_models $NUM_MODELS \

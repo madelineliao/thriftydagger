@@ -1,7 +1,7 @@
 #!/bin/bash
 ARCH=MLP
 CHECKPOINT_FILE=model_best.pt
-DATE=jan2
+DATE=jan3_hidden20
 ENVIRONMENT=Reach2D
 METHOD=BC
 NUM_MODELS=1

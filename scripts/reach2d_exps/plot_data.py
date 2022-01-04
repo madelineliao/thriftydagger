@@ -1,29 +1,48 @@
-import pickle
-
+import argparse
 import matplotlib.pyplot as plt
-import numpy as np
+import os
+import pickle
+import torch
+NS=[50, 100, 200, 300, 400, 500, 750, 1000]
 
 
-# data = np.array(pickle.load(open('./data/dec18_gen_pi_r_reach2d_data_1k_fixed/dec18_gen_pi_r_reach2d_data_1k_fixed_s4/reach2d_pi_r-1000.pkl', 'rb')))
-# data = np.array(pickle.load(open('./data/dec14_gen_oracle_reach2d_data_1k/dec14_gen_oracle_reach2d_data_1k_s4/pick-place-data-1000.pkl', 'rb')))
-data = np.array(pickle.load(open("./data/scripted_oracle_reach2d.pkl", "rb")))
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--data_source', type=str, default='fixed_oracle_under')
+    parser.add_argument('--date', type=str, default='jan3')
+    parser.add_argument('--environment', type=str, default='Reach2DPillar')
+    parser.add_argument('--num_rollouts', type=int, default=20)
+    parser.add_argument('--num_models', type=int, default=1)
+    parser.add_argument('--seed', type=int, default=4)
 
-idxs = np.arange(len(data))
-np.random.shuffle(idxs)
-# data = data[idxs[:10]]
-print(len(data))
-n_states = 0
-for i, demo in enumerate(data):
-    obs = demo["obs"]
-    goal = obs[0][2:]
-    print(goal)
-    plt.scatter([goal[0]], [goal[1]], color="red")
-    state_xs = []
-    state_ys = []
-    for state in obs:
-        state = state[:2]
-        state_xs.append(state[0])
-        state_ys.append(state[1])
-    plt.scatter(state_xs, state_ys)
-n_states += len(state_xs)
-plt.savefig(f"data.png")
+    args= parser.parse_args()
+    return args
+
+
+def main(args):
+    data = pickle.load(open(f'./data/{args.environment}/{args.data_source}.pkl', 'rb'))
+    for i, demo in enumerate(data):
+        if i == args.num_rollouts:
+            break
+        obs = demo['obs']
+        success = demo['success']
+        obs_x = [o[0] for o in obs]
+        obs_y = [o[1] for o in obs]
+        goal = obs[0][2:4]
+        pillar = obs[0][4:]
+        plt.plot(obs_x, obs_y)
+        plt.scatter([goal[0]], [goal[1]], color='red')
+        plt.scatter([pillar[0], pillar[0], pillar[0] + 1, pillar[0]+1], [pillar[1], pillar[1]-1, pillar[1], pillar[1]-1], color='green')
+        plt.xlim(-1, 4)
+        plt.ylim(-1, 4)
+        plt.title(f'{args.data_source} Data')
+        save_dir = f'./data/plots/{args.data_source}'
+        os.makedirs(save_dir, exist_ok=True)
+        save_path = os.path.join(save_dir, f'data{i}.png')
+        plt.savefig(save_path)
+        print(f'Plot saved to {save_path}')
+        plt.clf()
+
+if __name__ == '__main__':
+    args = parse_args()
+    main(args)
