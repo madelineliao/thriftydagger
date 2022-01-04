@@ -12,7 +12,17 @@ from util import init_model
 
 
 class BaseAlgorithm:
-    def __init__(self, model, model_kwargs, save_dir, max_traj_len, device, lr=1e-3, optimizer=torch.optim.Adam) -> None:
+    def __init__(
+        self,
+        model,
+        model_kwargs,
+        save_dir,
+        max_traj_len,
+        device,
+        lr=1e-3,
+        optimizer=torch.optim.Adam,
+        policy_cls="LinearModel",
+    ) -> None:
         self.device = device
         self.lr = lr
         self.max_traj_len = max_traj_len
@@ -23,9 +33,51 @@ class BaseAlgorithm:
         self.model_type = type(model)
         self.optimizer_type = optimizer
         self.is_ensemble = self.model_type == Ensemble
+        self.policy_cls = policy_cls
 
+        # Setup Optimizer, Metrics, and set Loss Function
         self._setup_optimizer()
         self._setup_metrics()
+        self.loss_fn = self._get_loss_fn()
+
+    def _get_loss_fn(self):
+        if self.policy_cls in ["LinearModel", "MLP"]:
+
+            def loss_fn(model_nn, observation, action):
+                predicted_action = model_nn(observation)
+                return torch.mean(torch.sum((action - predicted_action) ** 2, dim=1))
+
+            return loss_fn
+
+        elif self.policy_cls in ["GaussianMLP"]:
+
+            def loss_fn(model_nn, observation, action):
+                predicted_dist = model_nn(observation)
+                log_prob = predicted_dist.log_prob(action).sum(dim=1)
+
+                # Minimize negative log likelihood...
+                return -torch.mean(log_prob)
+
+            return loss_fn
+
+        elif self.policy_cls in ["MDN"]:
+
+            def loss_fn(model_nn, observation, action):
+                pi_dist, gaussian_dist = model_nn(observation)
+
+                # Compute Log-Likelihood of action under *each* Gaussian
+                per_gauss_log_prob = gaussian_dist.log_prob(action.unsqueeze(1).expand_as(gaussian_dist.loc)).sum(dim=2)
+
+                # Log Sum Exp to weight by Mixture Likelihood for full log prob
+                log_prob = torch.logsumexp(torch.log(pi_dist.probs) + per_gauss_log_prob, dim=1)
+
+                # Minimize negative log likelihood...
+                return -torch.mean(log_prob)
+
+            return loss_fn
+
+        else:
+            raise NotImplementedError(f"Loss Function for Architecture `{self.policy_cls}` not implemented...")
 
     def _setup_optimizer(self):
         if self.is_ensemble:
@@ -63,22 +115,25 @@ class BaseAlgorithm:
                     # Expert mode (either human or oracle algorithm)
                     a = self._expert_pol(curr_obs, env, robosuite_cfg)
                     # act = np.clip(act, -act_limit, act_limit) TODO: clip actions?
-                    if self._switch_mode(act=a) == True:
+                    if self._switch_mode(act=a):
                         print("Switch to Robot")
                         expert_mode = False
                     next_obs, _, _, _ = env.step(a)
+
                 else:
                     switch_mode = (not auto_only) and self._switch_mode(act=None, robosuite_cfg=robosuite_cfg, env=env)
                     if switch_mode:
                         print("Switch to Expert Mode")
                         expert_mode = True
                         continue
-                    a = self.model(curr_obs).to(self.device)
+                    a = self.model.get_action(curr_obs).to(self.device)
                     next_obs, _, _, _ = env.step(a)
+
                 act.append(a.cpu())
                 traj_length += 1
                 success = env._check_success()
                 curr_obs = next_obs
+
             demo = {"obs": obs, "act": act, "success": success}
             data.append(demo)
             env.close()
@@ -159,14 +214,16 @@ class BaseAlgorithm:
             epoch_losses = []
             for (obs, act) in prog_bar:
                 optimizer.zero_grad()
-                obs = obs.to(self.device)
-                act = act.to(self.device)
-                pred_act = model(obs)
-                loss = torch.mean(torch.sum((act - pred_act) ** 2, dim=1))
+                obs, act = obs.to(self.device), act.to(self.device)
+
+                # Custom Loss Function per Model Architecture
+                loss = self.loss_fn(model, observation=obs, action=act)
                 loss.backward()
                 optimizer.step()
+
                 epoch_losses.append(loss.item())
                 prog_bar.set_postfix(train_loss=loss.item())
+
             avg_loss = sum(epoch_losses) / len(epoch_losses)
             avg_val_loss = self.validate(model, val_loader)
 
@@ -183,12 +240,14 @@ class BaseAlgorithm:
     def validate(self, model, val_loader):
         model.eval()
         val_losses = []
-        for (obs, act) in val_loader:
-            obs = obs.to(self.device)
-            act = act.to(self.device)
-            pred_act = model(obs)
-            loss = torch.mean(torch.sum((act - pred_act) ** 2, dim=1))
-            val_losses.append(loss.item())
+        with torch.no_grad():
+            for (obs, act) in val_loader:
+                obs, act = obs.to(self.device), act.to(self.device)
+
+                # Custom Loss Function per Model Architecture
+                loss = self.loss_fn(model, observation=obs, action=act)
+                val_losses.append(loss.item())
+
         return sum(val_losses) / len(val_losses)
 
     def run(self, train_loader, val_loader, args, env=None, robosuite_cfg=None) -> None:

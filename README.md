@@ -51,10 +51,10 @@ conda create --name sharp-daggers python=3.8
 conda install pytorch==1.8.0 torchvision==0.9.0 torchaudio==0.8.0 -c pytorch
 conda install ipython
 
-pip install black gym isort matplotlib pyyaml
+pip install black gym h5py isort matplotlib pandas pyyaml tqdm
 
 # Follow instructions here to install mujoco-py: https://github.com/openai/mujoco-py#install-mujoco
-# < Assumes mujoco binaries are at ~/.mujoco/mujoco210 > (can copy from `/sailhome/siddk/.mujoco`)
+# < Assumes mujoco binaries are at ~/.mujoco/mujoco210 > 
 pip install 'mujoco-py<2.2,>=2.1'
 
 # Install Robosuite
@@ -68,10 +68,10 @@ conda create --name sharp-daggers python=3.8
 conda install pytorch==1.8.0 torchvision==0.9.0 torchaudio==0.8.0 cudatoolkit=11.1 -c pytorch -c conda-forge
 conda install ipython
 
-pip install black gym isort matplotlib pyyaml
+pip install black gym h5py isort matplotlib pandas pyyaml tqdm
 
 # Follow instructions here to install mujoco-py: https://github.com/openai/mujoco-py#install-mujoco
-# < Assumes mujoco binaries are at ~/.mujoco/mujoco210 >
+# < Assumes mujoco binaries are at ~/.mujoco/mujoco210 > (can copy from `/sailhome/siddk/.mujoco`)
 pip install 'mujoco-py<2.2,>=2.1'
 
 # Install Robosuite

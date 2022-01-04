@@ -6,7 +6,7 @@ import random
 import torch
 
 from constants import REACH2D_ACT_MAGNITUDE, REACH2D_MAX_TRAJ_LEN, REACH2D_SUCCESS_THRESH
-from environments import Reach2D
+from envs import Reach2D
 from util import get_model_type_and_kwargs, init_model
 
 
@@ -43,6 +43,9 @@ def parse_args():
         help="How to sample states/actions. Must be one of ['oracle', 'pi_r','oracle_pi_r_mix'].",
     )
     parser.add_argument(
+        "--random_start_state", action="store_true", help="Start at a random point instead of the origin."
+    )
+    parser.add_argument(
         "--model_path", type=str, default=None, help="Model path to use as pi_r when args.sample_mode samples from pi_r."
     )
     parser.add_argument("--arch", type=str, default="LinearModel", help="Model architecture to use.")
@@ -54,8 +57,8 @@ def parse_args():
         type=float,
         default=0.8,
         help=(
-            "For use with args.sample_mode == 'oracle_pi_r_mix' only.                             Percentage of oracle"
-            " trajectories to use (vs. policy-sampled trajectories)."
+            "For use with args.sample_mode == 'oracle_pi_r_mix' only. Percentage of oracle trajectories to use (vs. "
+            "policy-sampled trajectories)."
         ),
     )
 
@@ -88,6 +91,7 @@ def sample_reach(N_trajectories, random_start_state, range_x=3.0, range_y=3.0):
         demos.append({"obs": obs, "act": act, "success": success.item()})
 
     return demos
+
 
 def sample_pi_r(N_trajectories, random_start_state, model, max_traj_len, range_x=3.0, range_y=3.0, add_noise=False):
     demos = []
@@ -144,22 +148,33 @@ def main(args):
     if args.environment == "Reach2D":
         max_traj_len = REACH2D_MAX_TRAJ_LEN
         env = Reach2D(device, random_start_state=args.random_start_state)
-        if args.sample_mode == 'oracle':
+        if args.sample_mode == "oracle":
             demos = sample_reach(args.N_trajectories, args.random_start_state)
-        elif args.sample_mode  == 'pi_r':
+        elif args.sample_mode == "pi_r":
             model_type, model_kwargs = get_model_type_and_kwargs(args, obs_dim=env.obs_dim, act_dim=env.act_dim)
             model = init_model(model_type, model_kwargs, device=device, num_models=args.num_models)
             model.to(device)
-            demos = sample_pi_r(N_trajectories=args.N_trajectories, random_start_state=args.random_start_state, 
-                    max_traj_len=max_traj_len, model=model, add_noise=args.add_noise)
-        elif args.sample_mode == 'oracle_pi_r_mix':
+            demos = sample_pi_r(
+                N_trajectories=args.N_trajectories,
+                random_start_state=args.random_start_state,
+                max_traj_len=max_traj_len,
+                model=model,
+                add_noise=args.add_noise,
+            )
+        elif args.sample_mode == "oracle_pi_r_mix":
             model_type, model_kwargs = get_model_type_and_kwargs(args, obs_dim=env.obs_dim, act_dim=env.act_dim)
             model = init_model(model_type, model_kwargs, device=device, num_models=args.num_models)
             model.to(device)
             num_oracle = int(args.perc_oracle * args.N_trajectories)
             num_pi_r = args.N_trajectories - num_oracle
             oracle_demos = sample_reach(num_oracle, args.random_start_state)
-            pi_r_demos = sample_pi_r(N_trajectories=num_pi_r, random_start_state=args.random_start_state, max_traj_len=max_traj_len, model=model, add_noise=args.add_noise)
+            pi_r_demos = sample_pi_r(
+                N_trajectories=num_pi_r,
+                random_start_state=args.random_start_state,
+                max_traj_len=max_traj_len,
+                model=model,
+                add_noise=args.add_noise,
+            )
             demos = oracle_demos + pi_r_demos
         else:
             raise ValueError(

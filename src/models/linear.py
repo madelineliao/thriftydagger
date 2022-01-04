@@ -20,3 +20,6 @@ class LinearModel(nn.Module):
                     output /= torch.norm(output)
             output *= self.scale
         return output
+
+    def get_action(self, obs):
+        return self.forward(obs)

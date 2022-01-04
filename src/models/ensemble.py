@@ -17,3 +17,6 @@ class Ensemble(nn.Module):
             for model in self.models:
                 acts.append(model(obs).detach())
             return torch.mean(torch.stack(acts), dim=0)
+
+    def get_action(self, obs):
+        return self.forward(obs)

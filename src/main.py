@@ -9,8 +9,9 @@ import torch
 from algos import BC, Dagger, HGDagger
 from constants import PICKPLACE_MAX_TRAJ_LEN, REACH2D_MAX_TRAJ_LEN
 from datasets.util import get_dataset
-from environments import Reach2D
+from envs import Reach2D
 from util import get_model_type_and_kwargs, init_model, setup_robosuite
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -64,14 +65,14 @@ def parse_args():
         "--robosuite", action="store_true", help="Whether or not the environment is a Robosuite environment"
     )
     parser.add_argument("--no_render", action="store_true", help="If true, Robosuite rendering is skipped.")
-    parser.add_argument('--random_start_state', action='store_true', help='Random start state for Reach2D environment')
+    parser.add_argument("--random_start_state", action="store_true", help="Random start state for Reach2D environment")
 
     # Method / Model details
     parser.add_argument(
         "--method", type=str, required=True, help="One of \{BC, Dagger, ThriftyDagger, HGDagger, LazyDagger\}}"
     )
     parser.add_argument("--arch", type=str, default="LinearModel", help="Model architecture to use.")
-    parser.add_argument("--hidden_size", type=int, default=256, help="Hidden size of MLP if args.arch == 'MLP'")
+    parser.add_argument("--hidden_size", type=int, default=32, help="Hidden size of MLP if args.arch == 'MLP'")
     parser.add_argument(
         "--num_models", type=int, default=1, help="Number of models in the ensemble; if 1, a non-ensemble model is used"
     )
@@ -176,12 +177,14 @@ def main(args):
             max_traj_len=max_traj_len,
             beta=args.dagger_beta,
             use_indicator_beta=args.use_indicator_beta,
-            max_num_labels=1e6, #TODO
+            max_num_labels=1e6,  # TODO
         )
     elif args.method == "HGDagger":
         algorithm = HGDagger(model, model_kwargs, device=device, save_dir=save_dir, max_traj_len=max_traj_len)
     elif args.method == "BC":
-        algorithm = BC(model, model_kwargs, device=device, save_dir=save_dir, max_traj_len=max_traj_len)
+        algorithm = BC(
+            model, model_kwargs, device=device, save_dir=save_dir, max_traj_len=max_traj_len, policy_cls=args.arch
+        )
     else:
         raise NotImplementedError(f"Method {args.method} has not been implemented yet!")
 
@@ -189,7 +192,7 @@ def main(args):
     if args.eval_only:
         algorithm.eval_auto(args, env=env, robosuite_cfg=robosuite_cfg)
     else:
-        train, val = get_dataset(args.data_path, args.N)
+        train, val = get_dataset(args.data_path, args.N, save_dir)
         algorithm.run(train, val, args, env=env, robosuite_cfg=robosuite_cfg)
 
 
