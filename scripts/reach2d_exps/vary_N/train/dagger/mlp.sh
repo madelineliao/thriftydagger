@@ -35,7 +35,6 @@ do
             --num_models $NUM_MODELS \
             --seed $SEED \
             --use_indicator_beta \
-            --dagger_beta 1.0 \
-            --overwrite
+            --dagger_beta 1.0
     done
 done

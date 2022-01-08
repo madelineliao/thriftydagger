@@ -15,5 +15,4 @@ python ./src/generate_data.py \
     --save_fname $POLICY\_$POLICY2\_mix.pkl \
     --policy $POLICY \
     --policy2 $POLICY2 \
-    --perc 0.5 \
-    --overwrite
+    --perc 0.5

@@ -11,5 +11,4 @@ python ./src/generate_data.py \
     --seed $SEED \
     --save_fname $POLICY.pkl \
     --policy $POLICY \
-    --robosuite \
-    --overwrite
+    --robosuite

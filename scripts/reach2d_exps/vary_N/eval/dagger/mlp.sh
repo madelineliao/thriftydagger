@@ -30,7 +30,6 @@ do
             --method $METHOD \
             --arch $ARCH \
             --num_models $NUM_MODELS \
-            --seed $SEED \
-            --overwrite
+            --seed $SEED
     done
 done

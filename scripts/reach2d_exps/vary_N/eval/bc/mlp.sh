@@ -34,8 +34,7 @@ do
                 --hidden_size $HIDDEN_SIZE \
                 --arch $ARCH \
                 --num_models $NUM_MODELS \
-                --seed $EVAL_SEED \
-                --overwrite
+                --seed $EVAL_SEED 
         done
     done
 done
