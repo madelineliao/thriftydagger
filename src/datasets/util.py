@@ -1,8 +1,7 @@
+import os
 import pickle
 
 import numpy as np
-import os
-import pickle
 import torch
 
 from datasets.buffer import BufferDataset

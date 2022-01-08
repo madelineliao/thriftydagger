@@ -8,7 +8,7 @@ NS=[50, 100, 200, 300, 400, 500, 750, 1000]
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data_source', type=str, default='over_under_mix')
+    parser.add_argument('--data_source', type=str, default='over_under_mix_TESTING')
     parser.add_argument('--date', type=str, default='jan4')
     parser.add_argument('--environment', type=str, default='Reach2DPillar')
     parser.add_argument('--num_rollouts', type=int, default=20)

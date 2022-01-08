@@ -5,7 +5,7 @@ from robosuite.wrappers import GymWrapper, VisualizationWrapper
 
 from constants import ACTION_BATCH_SIZE, REACH2D_ACT_MAGNITUDE, PICKPLACE_MAX_TRAJ_LEN,  NUT_ASSEMBLY_MAX_TRAJ_LEN
 from envs import CustomWrapper
-from models import MLP, Ensemble, LinearModel
+from models import MDN, MLP, Ensemble, GaussianMLP, LinearModel
 
 
 def get_model_type_and_kwargs(args, obs_dim, act_dim):
@@ -17,6 +17,12 @@ def get_model_type_and_kwargs(args, obs_dim, act_dim):
             model_kwargs = dict(obs_dim=obs_dim, act_dim=act_dim)
     elif args.arch == "MLP":
         model_type = MLP
+        model_kwargs = dict(obs_dim=obs_dim, act_dim=act_dim, hidden_size=args.hidden_size)
+    elif args.arch == "GaussianMLP":
+        model_type = GaussianMLP
+        model_kwargs = dict(obs_dim=obs_dim, act_dim=act_dim, hidden_size=args.hidden_size)
+    elif args.arch == "MDN":
+        model_type = MDN
         model_kwargs = dict(obs_dim=obs_dim, act_dim=act_dim, hidden_size=args.hidden_size)
     else:
         raise NotImplementedError(f"The architecture {args.arch} has not been implemented yet!")

@@ -1,9 +1,12 @@
 import argparse
-import matplotlib.pyplot as plt
 import os
 import pickle
+
+import matplotlib.pyplot as plt
 import torch
-NS=[50, 100, 200, 300, 400, 500, 750, 1000]
+
+
+NS = [50, 100, 200, 300, 400, 500, 750, 1000]
 
 
 def parse_args():
@@ -24,18 +27,18 @@ def parse_args():
 
 
 def main(args):
-    exp_name_arch = args.arch if args.num_models == 1 else 'Ensemble' + args.arch
+    exp_name_arch = args.arch if args.num_models == 1 else "Ensemble" + args.arch
     for N in NS:
         exp_name = f'{args.date}/{args.environment}/{args.method}/{exp_name_arch}/eval/{args.data_source}_N{N}_seed{args.seed}/train_seed{args.train_seed}' 
         exp_dir = os.path.join('./out', exp_name)
         data_file = os.path.join(exp_dir, 'eval_auto_data.pkl')
 
-        with open(data_file, 'rb') as f:
+        with open(data_file, "rb") as f:
             data = pickle.load(f)
         for i, demo in enumerate(data):
             if i == args.num_rollouts:
                 break
-            state_xs =[]
+            state_xs = []
             state_ys = []
             goal = demo['obs'][0][2:4].detach()
             pillar = demo['obs'][0][4:].detach()
@@ -53,9 +56,10 @@ def main(args):
             plt.legend()
             save_path = os.path.join(exp_dir, f'N{N}_rollout{i}.png')
             plt.savefig(save_path)
-            print(f'Plot saved to {save_path}')
+            print(f"Plot saved to {save_path}")
             plt.clf()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     args = parse_args()
     main(args)

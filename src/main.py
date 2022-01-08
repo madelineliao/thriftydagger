@@ -13,6 +13,7 @@ from envs import Reach2D, Reach2DPillar
 from policies import Reach2DPolicy, Reach2DPillarPolicy
 from util import get_model_type_and_kwargs, init_model, setup_robosuite
 
+
 def parse_args():
     parser = argparse.ArgumentParser()
 
@@ -65,14 +66,14 @@ def parse_args():
         "--robosuite", action="store_true", help="Whether or not the environment is a Robosuite environment"
     )
     parser.add_argument("--no_render", action="store_true", help="If true, Robosuite rendering is skipped.")
-    parser.add_argument('--random_start_state', action='store_true', help='Random start state for Reach2D environment')
+    parser.add_argument("--random_start_state", action="store_true", help="Random start state for Reach2D environment")
 
     # Method / Model details
     parser.add_argument(
         "--method", type=str, required=True, help="One of \{BC, Dagger, ThriftyDagger, HGDagger, LazyDagger\}}"
     )
     parser.add_argument("--arch", type=str, default="LinearModel", help="Model architecture to use.")
-    parser.add_argument("--hidden_size", type=int, default=256, help="Hidden size of MLP if args.arch == 'MLP'")
+    parser.add_argument("--hidden_size", type=int, default=32, help="Hidden size of MLP if args.arch == 'MLP'")
     parser.add_argument(
         "--num_models", type=int, default=1, help="Number of models in the ensemble; if 1, a non-ensemble model is used"
     )
@@ -200,7 +201,7 @@ def main(args):
     elif args.method == "HGDagger":
         algorithm = HGDagger(model, model_kwargs, device=device, save_dir=save_dir)
     elif args.method == "BC":
-        algorithm = BC(model, model_kwargs, device=device, save_dir=save_dir)
+        algorithm = BC(model, model_kwargs, device=device, save_dir=save_dir, policy_cls=args.arch)
     else:
         raise NotImplementedError(f"Method {args.method} has not been implemented yet!")
 

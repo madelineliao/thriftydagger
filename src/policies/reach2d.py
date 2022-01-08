@@ -35,7 +35,7 @@ class Reach2DPolicy:
         return act, uses_grid
     
     def _model_policy(self, obs):
-        return self.model(obs).detach()
+        return self.model.get_action(obs).detach()
     
     def _straight_line_policy(self, obs):
         curr_state = obs[:2]

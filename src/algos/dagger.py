@@ -1,5 +1,6 @@
 import os
 import pickle
+
 import torch
 from torch.utils.data import DataLoader
 
@@ -69,8 +70,8 @@ class Dagger(BaseAlgorithm):
         return data
 
     def _save_data(self, data, epoch):
-        save_path = os.path.join(self.save_dir, f'data_epoch{epoch}.pkl')
-        with open(save_path, 'wb') as f:
+        save_path = os.path.join(self.save_dir, f"data_epoch{epoch}.pkl")
+        with open(save_path, "wb") as f:
             pickle.dump(data, f)
 
     def run(self, train_data, val_data, args, env, robosuite_cfg) -> None:
@@ -89,7 +90,7 @@ class Dagger(BaseAlgorithm):
                     for (obs, act) in zip(demo["obs"], demo["act"]):
                         train_data.update_buffer(obs, act)
                 train_loader = DataLoader(train_data, batch_size=args.batch_size, shuffle=True)
-                self._save_data(new_data, epoch) 
+                self._save_data(new_data, epoch)
 
             # If max number of expert labels exceeded, break
             if self.num_labels > self.max_num_labels:

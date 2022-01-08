@@ -45,6 +45,9 @@ def parse_args():
         "--policy2", type=str, default=None, help="Specifies second policy to use if sampling from a mixture."
     )
     parser.add_argument(
+        "--random_start_state", action="store_true", help="Start at a random point instead of the origin."
+    )
+    parser.add_argument(
         "--model_path", type=str, default=None, help="Model path to use as pi_r when args.sample_mode samples from pi_r."
     )
     parser.add_argument("--arch", type=str, default="LinearModel", help="Model architecture to use.")
@@ -56,11 +59,10 @@ def parse_args():
         type=float,
         default=0.5,
         help=(
-            "For use with args.sample_mode == 'oracle_pi_r_mix' only. Percentage of oracle"
-            " trajectories to use (vs. policy-sampled trajectories)."
+            "For use with args.sample_mode == 'oracle_pi_r_mix' only. Percentage of oracle trajectories to use (vs. "
+            "policy-sampled trajectories)."
         ),
     )
-    parser.add_argument("--random_start_state", action="store_true", help="Random start state for Reach2D environment")
     
     # Robosuite
     parser.add_argument("--no_render", action="store_true", help="If provided, Robosuite rendering is skipped.")
