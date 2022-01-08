@@ -17,18 +17,19 @@ class BaseAlgorithm:
         model,
         model_kwargs,
         save_dir,
-        max_traj_len,
         device,
+        expert_policy=None,
         lr=1e-3,
         optimizer=torch.optim.Adam,
         policy_cls="LinearModel",
     ) -> None:
-        self.device = device
-        self.lr = lr
-        self.max_traj_len = max_traj_len
+        
         self.model = model
         self.model_kwargs = model_kwargs
         self.save_dir = save_dir
+        self.device = device
+        self.expert_policy = expert_policy
+        self.lr = lr
 
         self.model_type = type(model)
         self.optimizer_type = optimizer
@@ -106,20 +107,19 @@ class BaseAlgorithm:
     def _rollout(self, env, robosuite_cfg, trajectories_per_rollout, auto_only=False):
         data = []
         for j in range(trajectories_per_rollout):
-            curr_obs, expert_mode, traj_length = env.reset(), False, 0
-            success = False
+            curr_obs, expert_mode = env.reset(), False
+            done, success = False, False
             obs, act = [], []
-            while traj_length <= self.max_traj_len and not success:
+            while not success and not done:
                 obs.append(curr_obs.cpu())
                 if expert_mode and not auto_only:
                     # Expert mode (either human or oracle algorithm)
-                    a = self._expert_pol(curr_obs, env, robosuite_cfg)
+                    a = self.expert_policy.act(curr_obs)
                     # act = np.clip(act, -act_limit, act_limit) TODO: clip actions?
                     if self._switch_mode(act=a):
                         print("Switch to Robot")
                         expert_mode = False
-                    next_obs, _, _, _ = env.step(a)
-
+                    next_obs, success, done, _ = env.step(a)
                 else:
                     switch_mode = (not auto_only) and self._switch_mode(act=None, robosuite_cfg=robosuite_cfg, env=env)
                     if switch_mode:
@@ -127,45 +127,15 @@ class BaseAlgorithm:
                         expert_mode = True
                         continue
                     a = self.model.get_action(curr_obs).to(self.device)
-                    next_obs, _, _, _ = env.step(a)
-
+                    next_obs, success, done, _ = env.step(a)
                 act.append(a.cpu())
-                traj_length += 1
-                success = env._check_success()
                 curr_obs = next_obs
-
+                
             demo = {"obs": obs, "act": act, "success": success}
             data.append(demo)
             env.close()
 
         return data
-
-    def _expert_pol(self, obs, env, robosuite_cfg):
-        """
-        Default expert policy: grant control to user
-        TODO: should have a default, non-Robosuite policy too?
-        """
-        return 0.1 * (obs[2:] - obs[:2]) / torch.norm((obs[2:] - obs[:2]))
-        # a = torch.zeros(7)
-        # if env.gripper_closed:
-        #     a[-1] = 1.
-        #     robosuite_cfg['input_device'].grasp = True
-        # else:
-        #     a[-1] = -1.
-        #     robosuite_cfg['input_device'].grasp = False
-        # a_ref = a.clone()
-        # # pause simulation if there is no user input (instead of recording a no-op)
-        # # TODO: make everything torch tensors
-        # import numpy as np
-        # while np.array_equal(a, a_ref):
-        #     a, _ = input2action(
-        #         device=robosuite_cfg['input_device'],
-        #         robot=robosuite_cfg['active_robot'],
-        #         active_arm=robosuite_cfg['arm'],
-        #         env_configuration=robosuite_cfg['env_config'])
-        #     env.render()
-        #     time.sleep(0.001)
-        return a
 
     def _save_checkpoint(self, epoch, best=False):
         if self.is_ensemble:
@@ -179,7 +149,7 @@ class BaseAlgorithm:
             ckpt_dict = {"model": self.model.state_dict(), "optimizer": self.optimizer.state_dict(), "epoch": epoch}
 
         if best:
-            ckpt_name = f"model_best_{epoch}.pt"
+            ckpt_name = f"model_best.pt"
         else:
             ckpt_name = f"model_{epoch}.pt"
 
@@ -208,6 +178,7 @@ class BaseAlgorithm:
 
     def train(self, model, optimizer, train_loader, val_loader, args):
         model.train()
+        best_val_loss = float('inf')
         for epoch in range(args.epochs):
             prog_bar = tqdm(train_loader, leave=False)
             prog_bar.set_description(f"Epoch {epoch}/{args.epochs - 1}")
@@ -236,6 +207,10 @@ class BaseAlgorithm:
 
             if epoch % args.save_iter == 0 or epoch == args.epochs - 1:
                 self._save_checkpoint(epoch)
+            
+            if avg_val_loss < best_val_loss:
+                self._save_checkpoint(epoch, best=True)
+                best_val_loss = avg_val_loss
 
     def validate(self, model, val_loader):
         model.eval()

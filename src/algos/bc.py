@@ -6,18 +6,18 @@ from algos import BaseAlgorithm
 
 class BC(BaseAlgorithm):
     def __init__(
-        self,
-        model,
-        model_kwargs,
-        save_dir,
-        max_traj_len,
-        device,
-        lr=1e-3,
-        optimizer=torch.optim.Adam,
-        policy_cls="LinearModel",
+        self, 
+        model, 
+        model_kwargs, 
+        save_dir, 
+        device, 
+        expert_policy=None, 
+        lr=1e-3, 
+        optimizer=torch.optim.Adam, 
+        policy_cls="LinearModel"
     ) -> None:
         super().__init__(
-            model, model_kwargs, save_dir, max_traj_len, device, lr=lr, optimizer=optimizer, policy_cls=policy_cls
+            model, model_kwargs, save_dir, device, expert_policy=expert_policy, lr=lr, optimizer=optimizer, policy_cls=policy_cls
         )
 
     def run(self, train_data, val_data, args, env=None, robosuite_cfg=None) -> None:
