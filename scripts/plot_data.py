@@ -2,60 +2,47 @@ import argparse
 import matplotlib.pyplot as plt
 import os
 import pickle
-
-DATA_SOURCES = ['oracle']
+import torch
 NS=[50, 100, 200, 300, 400, 500, 750, 1000]
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--arch', type=str, default='MLP')
-    parser.add_argument('--ckpt_file', type=str, default='model_4.pt')
-    parser.add_argument('--date', type=str, default='dec29')
-    parser.add_argument('--environment', type=str, default='Reach2D')
-    parser.add_argument('--epochs', type=int, default=5)
-    parser.add_argument('--method', type=str, default='BC')
+    parser.add_argument('--data_source', type=str, default='over_under_mix')
+    parser.add_argument('--date', type=str, default='jan4')
+    parser.add_argument('--environment', type=str, default='Reach2DPillar')
+    parser.add_argument('--num_rollouts', type=int, default=20)
     parser.add_argument('--num_models', type=int, default=1)
-    parser.add_argument('--seed', type=int, default=4)
+    parser.add_argument('--seed', type=int, default=0)
 
     args= parser.parse_args()
     return args
 
 
 def main(args):
-    exp_name_arch = args.arch if args.num_models == 1 else 'Ensemble' + args.arch
-    for data_source in DATA_SOURCES:
-        successes = []
-        for N in NS:
-            exp_name = f'{args.date}/{args.environment}/{args.method}/{exp_name_arch}/{data_source}_N{N}_seed{args.seed}' 
-            exp_dir = os.path.join('./out', exp_name)
-            obs_x = []
-            obs_y = []
-            total_data = 0
-            for epoch in range(1):#args.epochs):
-                data_file = os.path.join(exp_dir, 'train_data.pkl')#f'data_epoch{epoch}.pkl')
-
-                print(data_file)
-                with open(data_file, 'rb') as f:
-                    data = pickle.load(f)
-                #for demo in data:
-                #    obs = demo['obs']
-                #    obs_x += [obs[i][0] for i in range(len(obs))]
-                #    obs_y += [obs[i][1] for i in range(len(obs))]
-                #    total_data += len(obs)
-                obs = data['obs']
-                obs_x += [obs[i][0] for i in range(len(obs))]
-                obs_y += [obs[i][1] for i in range(len(obs))]
-                total_data += len(obs)
-            print(f'N={N}, total_data={total_data}, len(data)={len(data)}')
-            plt.clf()
-            plt.xlim(-1, 4) 
-            plt.ylim(-1, 4)
-            plt.scatter(obs_x, obs_y)
-            plt.title(f'{args.method} w/ {exp_name_arch}, Epochs={args.epochs}, N={N} Training Data')
-            save_path = f'./out/{args.date}/{args.environment}/{args.method}/{exp_name_arch}/{data_source}_N{N}_seed{args.seed}/train_data_plot.png' #eval/train_data_N{N}_seed{args.seed}.png'
-            plt.savefig(save_path)
-            print(f'Plot saved to {save_path}')
+    data = pickle.load(open(f'./data/{args.environment}/{args.data_source}.pkl', 'rb'))
+    data = data[299:]
+    for i, demo in enumerate(data):
+        if i == args.num_rollouts:
+            break
+        obs = demo['obs']
+        success = demo['success']
+        obs_x = [o[0] for o in obs]
+        obs_y = [o[1] for o in obs]
+        goal = obs[0][2:4]
+        pillar = obs[0][4:]
+        plt.plot(obs_x, obs_y)
+        plt.scatter([goal[0]], [goal[1]], color='red')
+        plt.scatter([pillar[0], pillar[0], pillar[0] + 0.5, pillar[0]+0.5], [pillar[1], pillar[1]-0.5, pillar[1], pillar[1]-0.5], color='green')
+        plt.xlim(-1, 4)
+        plt.ylim(-1, 4)
+        plt.title(f'{args.data_source} Data')
+        save_dir = f'./data/plots/{args.data_source}'
+        os.makedirs(save_dir, exist_ok=True)
+        save_path = os.path.join(save_dir, f'data{i}.png')
+        plt.savefig(save_path)
+        print(f'Plot saved to {save_path}')
+        plt.clf()
 
 if __name__ == '__main__':
     args = parse_args()

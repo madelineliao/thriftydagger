@@ -13,14 +13,15 @@ class Dagger(BaseAlgorithm):
         model_kwargs,
         save_dir,
         device,
+        expert_policy,
         lr=1e-3,
         optimizer=torch.optim.Adam,
         beta=0.9,
         use_indicator_beta=False,
-        max_num_labels=1000,
+        max_num_labels=1000
     ) -> None:
 
-        super().__init__(model, model_kwargs, save_dir, device, lr=lr, optimizer=optimizer)
+        super().__init__(model, model_kwargs, save_dir, device, expert_policy=expert_policy, lr=lr, optimizer=optimizer)
 
         self.use_indicator_beta = use_indicator_beta
         self.beta = self._init_beta(beta)
@@ -31,7 +32,7 @@ class Dagger(BaseAlgorithm):
         if self.use_indicator_beta and (beta != 1.0):
             raise ValueError(f"If use_indicator_beta is True, beta must be 1.0, but got beta={beta}!")
         return beta
-
+    
     def _rollout(self, env, robosuite_cfg, trajectories_per_rollout, auto_only=False):
         data = []
         for j in range(trajectories_per_rollout):
@@ -41,7 +42,7 @@ class Dagger(BaseAlgorithm):
             obs, act = [], []
             while not done and self.num_labels < self.max_num_labels:
                 if not auto_only:
-                    a_target = self._expert_pol(curr_obs, env, robosuite_cfg).detach()
+                    a_target = self.expert_policy.act(curr_obs)
                     a = self.beta * a_target + (1 - self.beta) * self.model(curr_obs).detach()
                     self.num_labels += 1
                     act.append(a_target.cpu())

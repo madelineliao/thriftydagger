@@ -6,10 +6,16 @@ import pickle
 
 
 FIXED_PILLAR_DATA_SOURCES = ['oracle_fixed_pillar_over', 'oracle_fixed_pillar_under']
+FIXED_PILLAR_NO_OBS_DATA_SOURCES = ['oracle_fixed_pillar_over_no_obs', 'oracle_fixed_pillar_under_no_obs']
 PILLAR_DATA_SOURCES = ['oracle_over', 'oracle_under']
+PILLAR_MIX_DATA_SOURCES = ['oracle_mix_over_under']
+PILLAR_MIX_PERCS_DATA_SOURCES = ['oracle_mix_perc_over_under_90_10', 'oracle_mix_perc_over_under_80_20', 'oracle_mix_perc_over_under_70_30', 'oracle_mix_perc_over_under_60_40']
+ORACLE_DATA_SOURCES = ['oracle']
+FIXED_PILLAR_RIGHT_ANGLE_DATA_SOURCES = ['oracle_fixed_pillar_up_right', 'oracle_fixed_pillar_right_up']
+FIXED_PILLAR_RIGHT_ANGLE_NO_OBS_DATA_SOURCES = ['oracle_fixed_pillar_up_right_no_obs', 'oracle_fixed_pillar_right_up_no_obs']
 
-TRAIN_SEEDS = [0, 2]#, 4]
-NS=[50, 100]#, 200, 300, 400, 500, 750, 1000]
+TRAIN_SEEDS = [0, 2, 4]
+NS=[50, 100, 200, 300, 400, 500, 750, 1000]
 
 
 def parse_args():
@@ -31,8 +37,20 @@ def main(args):
     exp_name_arch = args.arch if args.num_models == 1 else 'Ensemble' + args.arch
     if args.data_source == "fixed_pillar":
         data_sources = FIXED_PILLAR_DATA_SOURCES 
+    elif args.data_source == "fixed_pillar_no_obs":
+        data_sources = FIXED_PILLAR_NO_OBS_DATA_SOURCES 
+    elif args.data_source == "fixed_pillar_right_angle":
+        data_sources = FIXED_PILLAR_RIGHT_ANGLE_DATA_SOURCES
+    elif args.data_source == "fixed_pillar_right_angle_no_obs":
+        data_sources = FIXED_PILLAR_RIGHT_ANGLE_NO_OBS_DATA_SOURCES
     elif args.data_source == "pillar":
         data_sources = PILLAR_DATA_SOURCES
+    elif args.data_source == "pillar_mix":
+        data_sources = PILLAR_MIX_DATA_SOURCES
+    elif args.data_source == "pillar_mix_percs":
+        data_sources = PILLAR_MIX_PERCS_DATA_SOURCES
+    elif args.data_source == 'oracle':
+        data_sources = ORACLE_DATA_SOURCES
     else:
         raise NotImplementedError
     for data_source in data_sources:
@@ -51,7 +69,7 @@ def main(args):
             seed_successes.append(successes)
         means = [np.mean(seed_successes[i]) for i in range(len(seed_successes))]
         stds = [np.std(seed_successes[i]) for i in range(len(seed_successes))]
-        plt.errorbar(NS, means, yerr=stds, marker='o', label=data_source)
+        plt.errorbar(NS, means, yerr=stds, marker='o', label=f'50% over / 50% under')
     plt.xlabel('N')
     plt.ylabel('# successes')
     plt.ylim(0, 105)

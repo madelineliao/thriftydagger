@@ -17,15 +17,15 @@ class Grid:
 
         for i in range(len(x)):
             for j in range(len(y)):
-                if self.omitted_shape == None or (not self.omitted_shape.overlaps(xx[i, j], yy[i, j])):
+                if self.omitted_shape == None or (not self.omitted_shape.overlaps([xx[i, j], yy[i, j]])):
                     neighbors = []
-                    if i - 1 >= 0 and (self.omitted_shape == None or not self.omitted_shape.overlaps(xx[i - 1, j], yy[i - 1, j])):
+                    if i - 1 >= 0 and (self.omitted_shape == None or not self.omitted_shape.overlaps([xx[i - 1, j], yy[i - 1, j]])):
                         neighbors.append(torch.tensor([xx[i - 1, j], yy[i - 1, j]]))
-                    if i + 1 < len(x) and (self.omitted_shape == None or not self.omitted_shape.overlaps(xx[i + 1, j], yy[i + 1, j])):
+                    if i + 1 < len(x) and (self.omitted_shape == None or not self.omitted_shape.overlaps([xx[i + 1, j], yy[i + 1, j]])):
                         neighbors.append(torch.tensor([xx[i + 1, j], yy[i + 1, j]]))
-                    if j - 1 >= 0 and (self.omitted_shape == None or not self.omitted_shape.overlaps(xx[i, j - 1], yy[i, j - 1])):
+                    if j - 1 >= 0 and (self.omitted_shape == None or not self.omitted_shape.overlaps([xx[i, j - 1], yy[i, j - 1]])):
                         neighbors.append(torch.tensor([xx[i, j - 1], yy[i, j - 1]]))
-                    if j + 1 < len(y) and (self.omitted_shape == None or not self.omitted_shape.overlaps(xx[i, j + 1], yy[i, j + 1])):
+                    if j + 1 < len(y) and (self.omitted_shape == None or not self.omitted_shape.overlaps([xx[i, j + 1], yy[i, j + 1]])):
                         neighbors.append(torch.tensor([xx[i, j + 1], yy[i, j + 1]]))
                     adj_list[(xx[i, j], yy[i, j])] = neighbors
 

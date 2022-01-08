@@ -3,7 +3,7 @@ from robosuite import load_controller_config
 from robosuite.devices import Keyboard
 from robosuite.wrappers import GymWrapper, VisualizationWrapper
 
-from constants import REACH2D_ACT_MAGNITUDE
+from constants import ACTION_BATCH_SIZE, REACH2D_ACT_MAGNITUDE, PICKPLACE_MAX_TRAJ_LEN,  NUT_ASSEMBLY_MAX_TRAJ_LEN
 from envs import CustomWrapper
 from models import MLP, Ensemble, LinearModel
 
@@ -53,12 +53,13 @@ def setup_robosuite(args, max_traj_len):
             render_camera="agentview",
             single_object_mode=2,  # env has 1 nut instead of 2
             nut_type="round",
-            ignore_done=True,
+            ignore_done=False,
             use_camera_obs=False,
             reward_shaping=True,
             control_freq=20,
             hard_reset=True,
             use_object_obs=True,
+            horizon=(ACTION_BATCH_SIZE + NUT_ASSEMBLY_MAX_TRAJ_LEN * (ACTION_BATCH_SIZE + 1)) # TODO: clean this-- this is a result of thriftydagger code setup
         )
     elif args.environment == "PickPlace":
         env = suite.make(
@@ -68,12 +69,13 @@ def setup_robosuite(args, max_traj_len):
             render_camera="agentview",
             single_object_mode=2,
             object_type="cereal",
-            ignore_done=True,
+            ignore_done=False,
             use_camera_obs=False,
             reward_shaping=True,
             control_freq=20,
             hard_reset=True,
             use_object_obs=True,
+            horizon=PICKPLACE_MAX_TRAJ_LEN
         )
     else:
         env = suite.make(
@@ -81,7 +83,7 @@ def setup_robosuite(args, max_traj_len):
             has_renderer=render,
             has_offscreen_renderer=False,
             render_camera="agentview",
-            ignore_done=True,
+            ignore_done=False,
             use_camera_obs=False,
             reward_shaping=True,
             control_freq=20,

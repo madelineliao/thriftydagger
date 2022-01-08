@@ -47,7 +47,9 @@ class Reach2D:
         return goal_state
 
     def close(self):
-        """ Empty function so callers don't break with use of this class. """
+        """ 
+        Empty function so callers don't break with use of this class. 
+        """
         pass
 
     def reset(self):
@@ -67,8 +69,7 @@ class Reach2D:
         if self.grid == None:
             return (torch.norm(self.curr_state - self.goal_state) <= REACH2D_SUCCESS_THRESH).item()
         else:
-            # TODO this is ugly
-            return torch.isclose(torch.norm(self.curr_state - self.goal_state), torch.zeros(1), atol=1e-6).item()
+            return torch.isclose(torch.norm(self.curr_state - self.goal_state), torch.zeros(1), atol=1e-5).item()
 
     def _check_done(self):
         return self.ep_len >= self.max_ep_len

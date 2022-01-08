@@ -5,13 +5,11 @@ import random
 
 import torch
 
-from constants import REACH2D_ACT_MAGNITUDE, REACH2D_MAX_TRAJ_LEN, REACH2D_SUCCESS_THRESH
-from envs import Reach2D
-from src.envs.reach2d_pillar import Reach2DPillar
-from src.envs.grid import Grid
-from policies.reach2d import straight_line_policy, up_right_policy, right_up_policy
-from policies.reach2d_pillar import over_policy, under_policy, fixed_pillar_over_policy, fixed_pillar_under_policy
-from util import get_model_type_and_kwargs, init_model
+from constants import PICKPLACE_MAX_TRAJ_LEN, NUT_ASSEMBLY_MAX_TRAJ_LEN, REACH2D_ACT_MAGNITUDE, REACH2D_MAX_TRAJ_LEN, REACH2D_PILLAR_MAX_TRAJ_LEN, REACH2D_RANGE_X, REACH2D_RANGE_Y
+from envs import Reach2D, Reach2DPillar
+from envs.grid import Grid
+from policies import Reach2DPolicy, Reach2DPillarPolicy, NutAssemblyPolicy
+from util import get_model_type_and_kwargs, init_model, setup_robosuite
 
 
 def parse_args():
@@ -41,13 +39,10 @@ def parse_args():
 
     # Arguments specific to the Reach2D environment
     parser.add_argument(
-        "--sample_mode",
-        type=str,
-        default="oracle",
-        help="How to sample states/actions. Must be one of ['oracle', 'pi_r','oracle_pi_r_mix'].",
+        "--policy", type=str, default="straight", help="Specifies which policy to use."
     )
     parser.add_argument(
-        "--policy_mode", type=str, default="straight", help="Specifies which oracle policy to use for Reach2D environment."
+        "--policy2", type=str, default=None, help="Specifies second policy to use if sampling from a mixture."
     )
     parser.add_argument(
         "--model_path", type=str, default=None, help="Model path to use as pi_r when args.sample_mode samples from pi_r."
@@ -57,42 +52,27 @@ def parse_args():
         "--num_models", type=int, default=1, help="Number of models in the ensemble; if 1, a non-ensemble model is used"
     )
     parser.add_argument(
-        "--perc_oracle",
+        "--perc",
         type=float,
-        default=0.8,
+        default=0.5,
         help=(
             "For use with args.sample_mode == 'oracle_pi_r_mix' only. Percentage of oracle"
             " trajectories to use (vs. policy-sampled trajectories)."
         ),
     )
-    parser.add_argument('--random_start_state', action='store_true', help='Random start state for Reach2D environment')
+    parser.add_argument("--random_start_state", action="store_true", help="Random start state for Reach2D environment")
+    
+    # Robosuite
+    parser.add_argument("--no_render", action="store_true", help="If provided, Robosuite rendering is skipped.")
     
 
     args = parser.parse_args()
     return args
 
 
-def sample_reach(N_trajectories, device, random_start_state, policy_mode, range_x=3.0, range_y=3.0):
+def sample(env, policy, N_trajectories):
     demos = []
-    grid = None
-    if policy_mode == "straight":
-        policy = straight_line_policy
-    elif policy_mode == "up_right":
-        policy = up_right_policy
-        x_ticks = int(range_x / REACH2D_ACT_MAGNITUDE) + 1
-        y_ticks = int(range_y / REACH2D_ACT_MAGNITUDE) + 1
-        grid = Grid(x1=0, x2=range_x, y1=0, y2=range_y, x_ticks=x_ticks, y_ticks=y_ticks, omitted_shape=None)
-    elif policy_mode == "right_up":
-        policy = right_up_policy
-        x_ticks = int(range_x / REACH2D_ACT_MAGNITUDE) + 1
-        y_ticks = int(range_y / REACH2D_ACT_MAGNITUDE) + 1
-        grid = Grid(x1=0, x2=range_x, y1=0, y2=range_y, x_ticks=x_ticks, y_ticks=y_ticks, omitted_shape=None)
-    else:
-        raise NotImplementedError(f"Policy mode {policy_mode} has not been implemented yet for Reach2D Pillar!")
-    
-    env = Reach2D(device, max_ep_len=REACH2D_MAX_TRAJ_LEN, grid=grid, random_start_state=random_start_state, 
-                    range_x=range_x, range_y=range_y)
-    
+        
     for _ in range(N_trajectories):
         curr_obs = env.reset()
         obs = []
@@ -101,99 +81,7 @@ def sample_reach(N_trajectories, device, random_start_state, policy_mode, range_
         success = False
         
         while not done and not success:
-            action = policy(curr_obs)
-            obs.append(curr_obs)
-            act.append(action)
-            
-            curr_obs, success, done, _ = env.step(action)
-        
-        demos.append({"obs": obs, "act": act, "success": success})
-
-    return demos
-
-def sample_pi_r(N_trajectories, random_start_state, model, max_traj_len, range_x=3.0, range_y=3.0, add_noise=False):
-    demos = []
-
-    for _ in range(N_trajectories):
-        obs, act = [], []
-        goal_ee_state = torch.tensor([random.uniform(0, range_x), random.uniform(0, range_y)])
-        if random_start_state:
-            curr_state = torch.tensor([random.uniform(0, range_x), random.uniform(0, range_y)])
-        else:
-            curr_state = torch.zeros(2)
-        traj_len = 0
-        success = False
-
-        while traj_len <= REACH2D_MAX_TRAJ_LEN and not success:
-            o = torch.cat([curr_state, goal_ee_state])
-            obs.append(o.clone().detach())
-
-            # Record oracle action given observation o
-            a_target = goal_ee_state - curr_state
-            a_target = REACH2D_ACT_MAGNITUDE * a_target / torch.norm(a_target)
-            act.append(a_target.detach())
-
-            # Take policy's action given observation o
-            a = model(o)
-            curr_state = curr_state + a
-
-            if add_noise:
-                max_variance = 0
-                # TODO: allow different parameters for noise
-                for _ in range(20):
-                    noise = torch.normal(torch.zeros_like(o[:2]), std=0.5)
-                    candidate = o[:2] + noise
-                    if model.variance(torch.cat([candidate, o[2:]])) >= max_variance:
-                        o[:2] = candidate
-
-            traj_len += 1
-            success = torch.norm(o[:2] - o[2:]) <= REACH2D_SUCCESS_THRESH
-
-        demos.append({"obs": obs, "act": act, "success": success.item()})
-
-    return demos
-
-def sample_reach_pillar(N_trajectories, device, random_start_state, policy_mode, range_x=3.0, range_y=3.0):
-    demos = []
-    grid = None
-    fixed = False
-    if  policy_mode == "over":
-        policy = over_policy
-        x_ticks = int(range_x / REACH2D_ACT_MAGNITUDE) + 1
-        y_ticks = int(range_y / REACH2D_ACT_MAGNITUDE) + 1
-        grid = Grid(x1=0, x2=range_x, y1=0, y2=range_y, x_ticks=x_ticks, y_ticks=y_ticks, omitted_shape=None)
-    elif policy_mode == "under":
-        policy = under_policy
-        x_ticks = int(range_x / REACH2D_ACT_MAGNITUDE) + 1
-        y_ticks = int(range_y / REACH2D_ACT_MAGNITUDE) + 1
-        grid = Grid(x1=0, x2=range_x, y1=0, y2=range_y, x_ticks=x_ticks, y_ticks=y_ticks, omitted_shape=None)
-    elif policy_mode == "fixed_pillar_over":
-        policy = fixed_pillar_over_policy
-        x_ticks = int(range_x / REACH2D_ACT_MAGNITUDE) + 1
-        y_ticks = int(range_y / REACH2D_ACT_MAGNITUDE) + 1
-        grid = Grid(x1=0, x2=range_x, y1=0, y2=range_y, x_ticks=x_ticks, y_ticks=y_ticks, omitted_shape=None)
-        fixed = True
-    elif policy_mode == "fixed_pillar_under":
-        policy = fixed_pillar_under_policy
-        x_ticks = int(range_x / REACH2D_ACT_MAGNITUDE) + 1
-        y_ticks = int(range_y / REACH2D_ACT_MAGNITUDE) + 1
-        grid = Grid(x1=0, x2=range_x, y1=0, y2=range_y, x_ticks=x_ticks, y_ticks=y_ticks, omitted_shape=None)
-        fixed = True
-    else:
-        raise NotImplementedError(f"Policy mode {policy_mode} has not been implemented yet for Reach2D Pillar!")
-    
-    env = Reach2DPillar(device, max_ep_len=REACH2D_MAX_TRAJ_LEN, grid=grid, random_start_state=random_start_state, 
-                    range_x=range_x, range_y=range_y, fixed=fixed)
-    
-    for _ in range(N_trajectories):
-        curr_obs = env.reset()
-        obs = []
-        act = []
-        done = False
-        success = False
-        
-        while not done and not success:
-            action = policy(curr_obs)
+            action = policy.act(curr_obs)
             obs.append(curr_obs)
             act.append(action)
             
@@ -216,74 +104,79 @@ def load_model(args, device):
     
     return model
 
-def main(args):
-    torch.manual_seed(args.seed)
-    random.seed(args.seed)
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
-    print("Generating data...")
-    if args.environment == "Reach2D":
-        max_traj_len = REACH2D_MAX_TRAJ_LEN
-        if args.sample_mode == 'oracle':
-            demos = sample_reach(args.N_trajectories, device, args.random_start_state, args.policy_mode)
-        elif args.sample_mode == 'oracle_mix':
-            num_demos1= int(args.N_trajectories / 2)
-            num_demos2 = args.N_trajectories - num_demos1
-            demos1 = sample_reach(num_demos1, device, args.random_start_state, 'up_right')
-            demos2 = sample_reach(num_demos2, device, args.random_start_state, 'right_up')
-            demos = demos1 + demos2
-        elif args.sample_mode == 'oracle_mix_20_80':
-            num_demos1= int(0.2 * args.N_trajectories)
-            num_demos2 = args.N_trajectories - num_demos1
-            demos1 = sample_reach(num_demos1, device, args.random_start_state, 'up_right')
-            demos2 = sample_reach(num_demos2, device, args.random_start_state, 'right_up')
-            demos = demos1 + demos2
-        elif args.sample_mode  == 'pi_r':
-            model = load_model(args, device)
-            demos = sample_pi_r(N_trajectories=args.N_trajectories, random_start_state=args.random_start_state, 
-                    max_traj_len=max_traj_len, model=model, add_noise=args.add_noise)
-        elif args.sample_mode == 'oracle_pi_r_mix':
-            model = load_model(args, device)
-            num_oracle = int(args.perc_oracle * args.N_trajectories)
-            num_pi_r = args.N_trajectories - num_oracle
-            oracle_demos = sample_reach(num_oracle, args.random_start_state)
-            pi_r_demos = sample_pi_r(N_trajectories=num_pi_r, random_start_state=args.random_start_state, max_traj_len=max_traj_len, model=model, add_noise=args.add_noise)
-            demos = oracle_demos + pi_r_demos
+def get_env_and_policies(args, device):
+    if args.robosuite:
+        if args.policy2 is not None:
+            raise NotImplementedError(f"Data generation from mixtures of policies has not yet been implemented for Robosuite environments!")
+        if args.environment == "PickPlace":
+            env, robosuite_cfg = setup_robosuite(args, max_traj_len=PICKPLACE_MAX_TRAJ_LEN)
+        elif args.environment == "NutAssembly":
+            env, robosuite_cfg = setup_robosuite(args, max_traj_len=NUT_ASSEMBLY_MAX_TRAJ_LEN)
         else:
-            raise ValueError(
-                "args.sample_mode must be one of ['oracle', 'pi_r','oracle_pi_r_mix'] but"
-                f" got {args.sample_mode}!"
-            )
+            raise NotImplementedError(f"Environment {args.environment} has not been implemented yet!")
+        
+        policy = NutAssemblyPolicy(args.policy, env, robosuite_cfg)
+        policy2 = None
+        
+    elif args.environment == "Reach2D":
+        model = None if args.policy != "model" else load_model(args, device)
+        policy = Reach2DPolicy(args.policy, model=model)
+        grid = None
+        
+        if policy.uses_grid:
+            x_ticks = int(REACH2D_RANGE_X / REACH2D_ACT_MAGNITUDE) + 1
+            y_ticks = int(REACH2D_RANGE_Y / REACH2D_ACT_MAGNITUDE) + 1
+            grid = Grid(x1=0, x2=REACH2D_RANGE_X, y1=0, y2=REACH2D_RANGE_Y, 
+                        x_ticks=x_ticks, y_ticks=y_ticks, omitted_shape=None)
+        
+        env = Reach2D(device, max_ep_len=REACH2D_MAX_TRAJ_LEN, grid=grid, random_start_state=args.random_start_state, 
+                        range_x=REACH2D_RANGE_X, range_y=REACH2D_RANGE_Y)
+        
+        model = None if args.policy2 != "model" else load_model(args, device)
+        policy2 = Reach2DPolicy(args.policy2, model=model) if args.policy2 is not None else None
+            
     elif args.environment == "Reach2DPillar":
-        max_traj_len = REACH2D_MAX_TRAJ_LEN
-        if args.sample_mode == 'oracle':
-            demos = sample_reach_pillar(args.N_trajectories, device, args.random_start_state, args.policy_mode)
-        elif args.sample_mode == 'oracle_mix':
-            num_demos1= int(args.N_trajectories / 2)
-            num_demos2 = args.N_trajectories - num_demos1
-            demos1 = sample_reach_pillar(num_demos1, device, args.random_start_state, 'up_right')
-            demos2 = sample_reach_pillar(num_demos2, device, args.random_start_state, 'right_up')
-            demos = demos1 + demos2
-        elif args.sample_mode == 'oracle_mix_20_80':
-            num_demos1= int(0.2 * args.N_trajectories)
-            num_demos2 = args.N_trajectories - num_demos1
-            demos1 = sample_reach_pillar(num_demos1, device, args.random_start_state, 'up_right')
-            demos2 = sample_reach_pillar(num_demos2, device, args.random_start_state, 'right_up')
-            demos = demos1 + demos2
-        else:
-            raise NotImplementedError
+        x_ticks = int(REACH2D_RANGE_X / REACH2D_ACT_MAGNITUDE) + 1
+        y_ticks = int(REACH2D_RANGE_Y / REACH2D_ACT_MAGNITUDE) + 1
+        grid = Grid(x1=0, x2=REACH2D_RANGE_X, y1=0, y2=REACH2D_RANGE_Y, x_ticks=x_ticks, y_ticks=y_ticks, omitted_shape=None)
+        
+        env = Reach2DPillar(device, max_ep_len=REACH2D_PILLAR_MAX_TRAJ_LEN, grid=grid, random_start_state=args.random_start_state, 
+                        range_x=REACH2D_RANGE_X, range_y=REACH2D_RANGE_Y)
+        
+        policy = Reach2DPillarPolicy(args.policy, env.pillar)
+        policy2 = Reach2DPillarPolicy(args.policy2, env.pillar) if args.policy2 is not None else None
     else:
         raise NotImplementedError(
             f"Data generation for the environment '{args.environment}' has not been implemented yet!"
         )
+    
+    return env, policy, policy2
 
-    print("Data generated! Saving data...")
+def main(args):
+    torch.manual_seed(args.seed)
+    random.seed(args.seed)
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    
     save_path = os.path.join(args.save_dir, args.save_fname)
     if not args.overwrite and os.path.isfile(save_path):
         raise FileExistsError(
             f"The file {save_path} already exists. If you want to overwrite it, rerun with the argument --overwrite."
         )
     os.makedirs(args.save_dir, exist_ok=True)
+    
+    print("Generating data...")
+    
+    env, policy1, policy2 = get_env_and_policies(args, device)
+    if policy2 is None:
+        demos = sample(env, policy1, args.N_trajectories)
+    else:
+        num_demos1= int(args.perc * args.N_trajectories)
+        num_demos2 = args.N_trajectories - num_demos1
+        demos1 = sample(env, policy1, num_demos1)
+        demos2 = sample(env, policy2, num_demos2)
+        demos = demos1 + demos2
+
+    print("Data generated! Saving data...")
 
     with open(save_path, "wb") as f:
         pickle.dump(demos, f)

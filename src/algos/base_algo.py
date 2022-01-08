@@ -12,12 +12,13 @@ from util import init_model
 
 
 class BaseAlgorithm:
-    def __init__(self, model, model_kwargs, save_dir, device, lr=1e-3, optimizer=torch.optim.Adam) -> None:
-        self.device = device
-        self.lr = lr
+    def __init__(self, model, model_kwargs, save_dir, device, expert_policy=None, lr=1e-3, optimizer=torch.optim.Adam) -> None:
         self.model = model
         self.model_kwargs = model_kwargs
         self.save_dir = save_dir
+        self.device = device
+        self.expert_policy = expert_policy
+        self.lr = lr
 
         self.model_type = type(model)
         self.optimizer_type = optimizer
@@ -60,7 +61,7 @@ class BaseAlgorithm:
                 obs.append(curr_obs.cpu())
                 if expert_mode and not auto_only:
                     # Expert mode (either human or oracle algorithm)
-                    a = self._expert_pol(curr_obs, env, robosuite_cfg)
+                    a = self.expert_policy.act(curr_obs)
                     # act = np.clip(act, -act_limit, act_limit) TODO: clip actions?
                     if self._switch_mode(act=a) == True:
                         print("Switch to Robot")
@@ -83,12 +84,14 @@ class BaseAlgorithm:
 
         return data
 
-    def _expert_pol(self, obs, env, robosuite_cfg):
-        """
-        Default expert policy: grant control to user
-        TODO: should have a default, non-Robosuite policy too?
-        """
-        return 0.1 * (obs[2:] - obs[:2]) / torch.norm((obs[2:] - obs[:2]))
+    # def _expert_pol(self, obs):#, env, robosuite_cfg):
+    #     """
+    #     Default expert policy: grant control to user
+    #     TODO: should have a default, non-Robosuite policy too?
+    #     """
+    #     return self.expert_policy.act(obs)
+    #     raise NotImplementedError
+        # return 0.1 * (obs[2:] - obs[:2]) / torch.norm((obs[2:] - obs[:2]))
         # a = torch.zeros(7)
         # if env.gripper_closed:
         #     a[-1] = 1.
@@ -108,7 +111,7 @@ class BaseAlgorithm:
         #         env_configuration=robosuite_cfg['env_config'])
         #     env.render()
         #     time.sleep(0.001)
-        return a
+        # return a
 
     def _save_checkpoint(self, epoch, best=False):
         if self.is_ensemble:
