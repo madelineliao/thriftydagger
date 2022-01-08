@@ -84,35 +84,6 @@ class BaseAlgorithm:
 
         return data
 
-    # def _expert_pol(self, obs):#, env, robosuite_cfg):
-    #     """
-    #     Default expert policy: grant control to user
-    #     TODO: should have a default, non-Robosuite policy too?
-    #     """
-    #     return self.expert_policy.act(obs)
-    #     raise NotImplementedError
-        # return 0.1 * (obs[2:] - obs[:2]) / torch.norm((obs[2:] - obs[:2]))
-        # a = torch.zeros(7)
-        # if env.gripper_closed:
-        #     a[-1] = 1.
-        #     robosuite_cfg['input_device'].grasp = True
-        # else:
-        #     a[-1] = -1.
-        #     robosuite_cfg['input_device'].grasp = False
-        # a_ref = a.clone()
-        # # pause simulation if there is no user input (instead of recording a no-op)
-        # # TODO: make everything torch tensors
-        # import numpy as np
-        # while np.array_equal(a, a_ref):
-        #     a, _ = input2action(
-        #         device=robosuite_cfg['input_device'],
-        #         robot=robosuite_cfg['active_robot'],
-        #         active_arm=robosuite_cfg['arm'],
-        #         env_configuration=robosuite_cfg['env_config'])
-        #     env.render()
-        #     time.sleep(0.001)
-        # return a
-
     def _save_checkpoint(self, epoch, best=False):
         if self.is_ensemble:
             # Save state dict for each model/optimizer
