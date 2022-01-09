@@ -33,7 +33,8 @@ do
                     --method $METHOD \
                     --arch $ARCH \
                     --num_models $NUM_MODELS \
-                    --seed $SEED 
+                    --seed $SEED \
+                    --robosuite
             done
         done
     done

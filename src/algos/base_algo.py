@@ -186,7 +186,6 @@ class BaseAlgorithm:
             for (obs, act) in prog_bar:
                 optimizer.zero_grad()
                 obs, act = obs.to(self.device), act.to(self.device)
-
                 # Custom Loss Function per Model Architecture
                 loss = self.loss_fn(model, observation=obs, action=act)
                 loss.backward()

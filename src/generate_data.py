@@ -101,8 +101,8 @@ def sample(env, policy, N_trajectories, interactive_robosuite=False):
                         done = False
                         success = False
                         continue
-                obs.append(curr_obs)
-                act.append(action)
+                obs.append(torch.tensor(curr_obs).float())
+                act.append(action.float())
                 
                 curr_obs, success, done, _ = env.step(action)
             
