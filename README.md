@@ -48,14 +48,9 @@ Generally, if you're just trying to run/use this code, look at the Quickstart se
 
 ```bash
 conda create --name sharp-daggers python=3.8
-conda install pytorch==1.8.0 torchvision==0.9.0 torchaudio==0.8.0 -c pytorch
-conda install ipython
+conda install pytorch==1.8.0 torchvision==0.9.0 torchaudio==0.8.0 ipython -c pytorch
 
 pip install black gym h5py isort matplotlib pandas pyyaml tqdm
-
-# Follow instructions here to install mujoco-py: https://github.com/openai/mujoco-py#install-mujoco
-# < Assumes mujoco binaries are at ~/.mujoco/mujoco210 > 
-pip install 'mujoco-py<2.2,>=2.1'
 
 # Install Robosuite
 pip install robosuite
@@ -69,10 +64,6 @@ conda install pytorch==1.8.0 torchvision==0.9.0 torchaudio==0.8.0 cudatoolkit=11
 conda install ipython
 
 pip install black gym h5py isort matplotlib pandas pyyaml tqdm
-
-# Follow instructions here to install mujoco-py: https://github.com/openai/mujoco-py#install-mujoco
-# < Assumes mujoco binaries are at ~/.mujoco/mujoco210 > (can copy from `/sailhome/siddk/.mujoco`)
-pip install 'mujoco-py<2.2,>=2.1'
 
 # Install Robosuite
 pip install robosuite

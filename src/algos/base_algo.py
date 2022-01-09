@@ -23,7 +23,7 @@ class BaseAlgorithm:
         optimizer=torch.optim.Adam,
         policy_cls="LinearModel",
     ) -> None:
-        
+
         self.model = model
         self.model_kwargs = model_kwargs
         self.save_dir = save_dir
@@ -130,7 +130,7 @@ class BaseAlgorithm:
                     next_obs, success, done, _ = env.step(a)
                 act.append(a.cpu())
                 curr_obs = next_obs
-                
+
             demo = {"obs": obs, "act": act, "success": success}
             data.append(demo)
             env.close()
@@ -178,7 +178,7 @@ class BaseAlgorithm:
 
     def train(self, model, optimizer, train_loader, val_loader, args):
         model.train()
-        best_val_loss = float('inf')
+        best_val_loss = float("inf")
         for epoch in range(args.epochs):
             prog_bar = tqdm(train_loader, leave=False)
             prog_bar.set_description(f"Epoch {epoch}/{args.epochs - 1}")
@@ -207,7 +207,7 @@ class BaseAlgorithm:
 
             if epoch % args.save_iter == 0 or epoch == args.epochs - 1:
                 self._save_checkpoint(epoch)
-            
+
             if avg_val_loss < best_val_loss:
                 self._save_checkpoint(epoch, best=True)
                 best_val_loss = avg_val_loss

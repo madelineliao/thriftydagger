@@ -3,7 +3,7 @@ from robosuite import load_controller_config
 from robosuite.devices import Keyboard
 from robosuite.wrappers import GymWrapper, VisualizationWrapper
 
-from constants import ACTION_BATCH_SIZE, REACH2D_ACT_MAGNITUDE, PICKPLACE_MAX_TRAJ_LEN,  NUT_ASSEMBLY_MAX_TRAJ_LEN
+from constants import ACTION_BATCH_SIZE, NUT_ASSEMBLY_MAX_TRAJ_LEN, PICKPLACE_MAX_TRAJ_LEN, REACH2D_ACT_MAGNITUDE
 from envs import CustomWrapper
 from models import MDN, MLP, Ensemble, GaussianMLP, LinearModel
 
@@ -65,7 +65,9 @@ def setup_robosuite(args, max_traj_len):
             control_freq=20,
             hard_reset=True,
             use_object_obs=True,
-            horizon=(ACTION_BATCH_SIZE + NUT_ASSEMBLY_MAX_TRAJ_LEN * (ACTION_BATCH_SIZE + 1)) # TODO: clean this-- this is a result of thriftydagger code setup
+            horizon=(
+                ACTION_BATCH_SIZE + NUT_ASSEMBLY_MAX_TRAJ_LEN * (ACTION_BATCH_SIZE + 1)
+            ),  # TODO: clean this-- this is a result of thriftydagger code setup
         )
     elif args.environment == "PickPlace":
         env = suite.make(
@@ -81,7 +83,7 @@ def setup_robosuite(args, max_traj_len):
             control_freq=20,
             hard_reset=True,
             use_object_obs=True,
-            horizon=PICKPLACE_MAX_TRAJ_LEN
+            horizon=PICKPLACE_MAX_TRAJ_LEN,
         )
     else:
         env = suite.make(

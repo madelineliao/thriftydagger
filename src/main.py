@@ -7,10 +7,18 @@ import numpy as np
 import torch
 
 from algos import BC, Dagger, HGDagger
-from constants import MAX_NUM_LABELS, NUT_ASSEMBLY_MAX_TRAJ_LEN, PICKPLACE_MAX_TRAJ_LEN, REACH2D_MAX_TRAJ_LEN, REACH2D_PILLAR_MAX_TRAJ_LEN, REACH2D_RANGE_X, REACH2D_RANGE_Y
+from constants import (
+    MAX_NUM_LABELS,
+    NUT_ASSEMBLY_MAX_TRAJ_LEN,
+    PICKPLACE_MAX_TRAJ_LEN,
+    REACH2D_MAX_TRAJ_LEN,
+    REACH2D_PILLAR_MAX_TRAJ_LEN,
+    REACH2D_RANGE_X,
+    REACH2D_RANGE_Y,
+)
 from datasets.util import get_dataset
 from envs import Reach2D, Reach2DPillar
-from policies import Reach2DPolicy, Reach2DPillarPolicy
+from policies import Reach2DPillarPolicy, Reach2DPolicy
 from util import get_model_type_and_kwargs, init_model, setup_robosuite
 
 
@@ -114,18 +122,20 @@ def parse_args():
 
     return parser.parse_args()
 
+
 def get_policy(args, env):
     if args.environment == "Reach2D":
         policy = Reach2DPolicy(args.policy)
-            
+
     elif args.environment == "Reach2DPillar":
         policy = Reach2DPillarPolicy(args.policy, env.pillar)
     else:
         raise NotImplementedError(
             f"Policy-loading for the environment '{args.environment}' has not been implemented yet!"
         )
-    
+
     return policy
+
 
 def main(args):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -156,14 +166,24 @@ def main(args):
         else:
             raise NotImplementedError(f"Environment {args.environment} has not been implemented yet!")
     elif args.environment == "Reach2D":
-        env = Reach2D(device, max_ep_len=REACH2D_MAX_TRAJ_LEN, random_start_state=args.random_start_state, 
-                        range_x=REACH2D_RANGE_X, range_y=REACH2D_RANGE_Y)
+        env = Reach2D(
+            device,
+            max_ep_len=REACH2D_MAX_TRAJ_LEN,
+            random_start_state=args.random_start_state,
+            range_x=REACH2D_RANGE_X,
+            range_y=REACH2D_RANGE_Y,
+        )
         robosuite_cfg = None
         obs_dim = env.obs_dim
         act_dim = env.act_dim
     elif args.environment == "Reach2DPillar":
-        env = Reach2DPillar(device, max_ep_len=REACH2D_PILLAR_MAX_TRAJ_LEN, random_start_state=args.random_start_state, 
-                        range_x=REACH2D_RANGE_X, range_y=REACH2D_RANGE_Y)
+        env = Reach2DPillar(
+            device,
+            max_ep_len=REACH2D_PILLAR_MAX_TRAJ_LEN,
+            random_start_state=args.random_start_state,
+            range_x=REACH2D_RANGE_X,
+            range_y=REACH2D_RANGE_Y,
+        )
         robosuite_cfg = None
         obs_dim = env.obs_dim
         act_dim = env.act_dim
@@ -196,7 +216,7 @@ def main(args):
             save_dir=save_dir,
             beta=args.dagger_beta,
             use_indicator_beta=args.use_indicator_beta,
-            max_num_labels=MAX_NUM_LABELS
+            max_num_labels=MAX_NUM_LABELS,
         )
     elif args.method == "HGDagger":
         algorithm = HGDagger(model, model_kwargs, device=device, save_dir=save_dir)
