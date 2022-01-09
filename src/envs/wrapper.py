@@ -3,6 +3,7 @@ import numpy as np
 
 from constants import ACTION_BATCH_SIZE
 
+
 class CustomWrapper(gym.Env):
     def __init__(self, env, render):
         self.env = env
@@ -42,7 +43,7 @@ class CustomWrapper(gym.Env):
             self.gripper_closed = True
         else:
             self.gripper_closed = False
-        
+
         return r1, self._check_success(), r3, r4
 
     def _check_success(self):

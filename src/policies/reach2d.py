@@ -1,6 +1,7 @@
 import torch
 
-from src.constants import REACH2D_ACT_MAGNITUDE, REACH2D_ACT_DIM
+from constants import REACH2D_ACT_DIM, REACH2D_ACT_MAGNITUDE
+
 
 class Reach2DPolicy:
     def __init__(self, policy, model=None) -> None:
@@ -11,7 +12,7 @@ class Reach2DPolicy:
     def _init_act(self, policy):
         """
         Returns act function + whether or not the policy uses a grid layout
-        (which discretizes the 2D space into a grid rather than operating 
+        (which discretizes the 2D space into a grid rather than operating
         in continuous space).
         """
         if policy == "straight_line":
@@ -28,29 +29,29 @@ class Reach2DPolicy:
                 return ValueError(f"For policy == model, self.model must be provided but got self.model == None!")
             uses_grid = False
             act = self._model_policy
-            
+
         else:
             raise NotImplementedError(f"Policy {policy} not yet implemented for Reach2D environment!")
-        
+
         return act, uses_grid
-    
+
     def _model_policy(self, obs):
         return self.model.get_action(obs).detach()
-    
+
     def _straight_line_policy(self, obs):
         curr_state = obs[:2]
-        goal_state  = obs[2:]
+        goal_state = obs[2:]
         act = goal_state - curr_state
         act = REACH2D_ACT_MAGNITUDE * act / torch.norm(act)
-        
+
         return act
 
     def _up_right_policy(self, obs):
         curr_state = obs[:2]
-        goal_state  = obs[2:]
+        goal_state = obs[2:]
         curr_x, curr_y = curr_state
         goal_x, goal_y = goal_state
-        
+
         if not torch.isclose(curr_y, goal_y):
             # First, align y-coordinate
             if curr_y < goal_y:
@@ -65,16 +66,15 @@ class Reach2DPolicy:
                 act = torch.tensor([-REACH2D_ACT_MAGNITUDE, 0])
         else:
             act = torch.zeros(REACH2D_ACT_DIM)
-        
+
         return act
 
     def _right_up_policy(self, obs):
         curr_state = obs[:2]
-        goal_state  = obs[2:]
+        goal_state = obs[2:]
         curr_x, curr_y = curr_state
         goal_x, goal_y = goal_state
-        
-        
+
         if not torch.isclose(curr_x, goal_x):
             # First, align x-coordinate
             if curr_x < goal_x:
@@ -89,5 +89,5 @@ class Reach2DPolicy:
                 act = torch.tensor([0, -REACH2D_ACT_MAGNITUDE])
         else:
             act = torch.zeros(REACH2D_ACT_DIM)
-            
+
         return act

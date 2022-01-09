@@ -1,3 +1,3 @@
+from policies.nut_assembly import NutAssemblyPolicy
 from policies.reach2d import Reach2DPolicy
 from policies.reach2d_pillar import Reach2DPillarPolicy
-from policies.nut_assembly import NutAssemblyPolicy

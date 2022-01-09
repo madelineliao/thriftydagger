@@ -19,7 +19,7 @@ class Dagger(BaseAlgorithm):
         optimizer=torch.optim.Adam,
         beta=0.9,
         use_indicator_beta=False,
-        max_num_labels=1000
+        max_num_labels=1000,
     ) -> None:
 
         super().__init__(model, model_kwargs, save_dir, device, expert_policy=expert_policy, lr=lr, optimizer=optimizer)
@@ -33,7 +33,7 @@ class Dagger(BaseAlgorithm):
         if self.use_indicator_beta and (beta != 1.0):
             raise ValueError(f"If use_indicator_beta is True, beta must be 1.0, but got beta={beta}!")
         return beta
-    
+
     def _rollout(self, env, robosuite_cfg, trajectories_per_rollout, auto_only=False):
         data = []
         for j in range(trajectories_per_rollout):
@@ -52,18 +52,18 @@ class Dagger(BaseAlgorithm):
                     act.append(a.cpu())
                 next_obs, success, done, _ = env.step(a)
                 obs.append(curr_obs.cpu())
-                
+
                 # Document whether or not success was reached, but continue
                 # rolling out until done (DAgger rolls out until max trajectory length
                 # is reached, not until success is reached)
                 if success:
                     reached_success = True
                 curr_obs = next_obs
-            
+
             demo = {"obs": obs, "act": act, "success": reached_success}
             data.append(demo)
             env.close()
-            
+
             if self.num_labels >= self.max_num_labels:
                 break
 
