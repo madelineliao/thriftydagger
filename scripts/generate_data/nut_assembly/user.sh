@@ -1,6 +1,6 @@
 #!/bin/bash
 ENVIRONMENT=NutAssembly
-N=50
+N=30
 POLICY=user
 SEED=0
 

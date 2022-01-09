@@ -72,25 +72,40 @@ def parse_args():
     return args
 
 
-def sample(env, policy, N_trajectories):
+def sample(env, policy, N_trajectories, interactive_robosuite=False):
     demos = []
-        
-    for _ in range(N_trajectories):
-        curr_obs = env.reset()
-        obs = []
-        act = []
-        done = False
-        success = False
-        
-        while not done and not success:
-            action = policy.act(curr_obs)
-            obs.append(curr_obs)
-            act.append(action)
+    if interactive_robosuite:
+        print("Press 'Z' to reset (and ignore) the current demonstration")
+        print("Press Ctrl-C to quit + save all demos recorded so far.\n")
+    try:
+        for _ in range(N_trajectories):
+            curr_obs = env.reset()
+            obs = []
+            act = []
+            done = False
+            success = False
             
-            curr_obs, success, done, _ = env.step(action)
-        
-        demos.append({"obs": obs, "act": act, "success": success})
-
+            while not done and not success:
+                action = policy.act(curr_obs)
+                
+                if interactive_robosuite:
+                    # Use 'Z' press to indicate 'reset'
+                    if action[3] != 0:
+                        curr_obs = env.reset()
+                        obs = []
+                        act = []
+                        done = False
+                        success = False
+                        continue
+                obs.append(curr_obs)
+                act.append(action)
+                
+                curr_obs, success, done, _ = env.step(action)
+            
+            demos.append({"obs": obs, "act": act, "success": success})
+    except KeyboardInterrupt:
+        return demos
+    
     return demos
 
 
@@ -169,13 +184,18 @@ def main(args):
     print("Generating data...")
     
     env, policy1, policy2 = get_env_and_policies(args, device)
+    
+    
     if policy2 is None:
-        demos = sample(env, policy1, args.N_trajectories)
+        interactive_robosuite = args.robosuite and args.policy == "user"
+        demos = sample(env, policy1, args.N_trajectories, interactive_robosuite=interactive_robosuite)
     else:
+        interactive_robosuite1 = args.robosuite and args.policy == "user"
+        interactive_robosuite2 = args.robosuite and args.policy2 == "user"
         num_demos1= int(args.perc * args.N_trajectories)
         num_demos2 = args.N_trajectories - num_demos1
-        demos1 = sample(env, policy1, num_demos1)
-        demos2 = sample(env, policy2, num_demos2)
+        demos1 = sample(env, policy1, num_demos1, interactive_robosuite=interactive_robosuite1)
+        demos2 = sample(env, policy2, num_demos2, interactive_robosuite=interactive_robosuite2)
         demos = demos1 + demos2
 
     print("Data generated! Saving data...")
