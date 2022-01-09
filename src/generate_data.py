@@ -1,8 +1,8 @@
 import argparse
+import numpy as np
 import os
 import pickle
 import random
-
 import torch
 
 from constants import (
@@ -92,7 +92,6 @@ def sample(env, policy, N_trajectories, interactive_robosuite=False):
             
             while not done and not success:
                 action = policy.act(curr_obs)
-                
                 if interactive_robosuite:
                     # Use 'Z' press to indicate 'reset'
                     if action[3] != 0:
@@ -114,6 +113,23 @@ def sample(env, policy, N_trajectories, interactive_robosuite=False):
     return demos
 
 
+def get_mixture_dataset(file1, file2, perc, N_trajectories):
+    demos1 = np.array(pickle.load(open(file1, "rb")))
+    demos2 = np.array(pickle.load(open(file2, "rb")))
+    
+    num_demos1 = int(perc * N_trajectories)
+    num_demos2 = N_trajectories - num_demos1
+    
+    idxs1 = torch.randperm(len(demos1))
+    idxs2 = torch.randperm(len(demos2))
+    
+    demos1 = demos1[idxs1[:num_demos1]]
+    demos2 = demos2[idxs2[:num_demos2]]
+    
+    demos = list(demos1) + list(demos2)
+
+    return demos
+
 def load_model(args, device):
     # TODO: add other envs
     env = Reach2D(device, max_ep_len=REACH2D_MAX_TRAJ_LEN, random_start_state=args.random_start_state)
@@ -129,10 +145,6 @@ def load_model(args, device):
 
 def get_env_and_policies(args, device):
     if args.robosuite:
-        if args.policy2 is not None:
-            raise NotImplementedError(
-                f"Data generation from mixtures of policies has not yet been implemented for Robosuite environments!"
-            )
         if args.environment == "PickPlace":
             env, robosuite_cfg = setup_robosuite(args, max_traj_len=PICKPLACE_MAX_TRAJ_LEN)
         elif args.environment == "NutAssembly":
@@ -207,21 +219,30 @@ def main(args):
 
     print("Generating data...")
 
-    env, policy1, policy2 = get_env_and_policies(args, device)
-    
-    
-    if policy2 is None:
+    if args.policy2 is not None:
+        # Generate mixture dataset
+        if args.robosuite:
+            file1 = os.path.join(args.save_dir, f"{args.policy}.pkl")
+            file2 = os.path.join(args.save_dir, f"{args.policy2}.pkl")
+            
+            if os.path.isfile(file1) and os.path.isfile(file2):
+                demos = get_mixture_dataset(file1, file2, args.perc, args.N_trajectories)
+            else:
+                raise FileNotFoundError(f"To generate a mixture of Robosuite policies, two files with saved data for the two policies must exist at {file1} and {file2}!")
+        else:
+            env, policy1, policy2 = get_env_and_policies(args, device)
+            interactive_robosuite1 = args.robosuite and args.policy == "user"
+            interactive_robosuite2 = args.robosuite and args.policy2 == "user"
+            num_demos1= int(args.perc * args.N_trajectories)
+            num_demos2 = args.N_trajectories - num_demos1
+            demos1 = sample(env, policy1, num_demos1, interactive_robosuite=interactive_robosuite1)
+            demos2 = sample(env, policy2, num_demos2, interactive_robosuite=interactive_robosuite2)
+            demos = demos1 + demos2
+    else:
+        env, policy1, policy2 = get_env_and_policies(args, device)
         interactive_robosuite = args.robosuite and args.policy == "user"
         demos = sample(env, policy1, args.N_trajectories, interactive_robosuite=interactive_robosuite)
-    else:
-        interactive_robosuite1 = args.robosuite and args.policy == "user"
-        interactive_robosuite2 = args.robosuite and args.policy2 == "user"
-        num_demos1= int(args.perc * args.N_trajectories)
-        num_demos2 = args.N_trajectories - num_demos1
-        demos1 = sample(env, policy1, num_demos1, interactive_robosuite=interactive_robosuite1)
-        demos2 = sample(env, policy2, num_demos2, interactive_robosuite=interactive_robosuite2)
-        demos = demos1 + demos2
-
+        
     print("Data generated! Saving data...")
 
     with open(save_path, "wb") as f:
