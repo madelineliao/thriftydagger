@@ -198,7 +198,7 @@ def main(args):
     # Load model checkpoint if in eval_only mode
     if args.eval_only:
         model.eval()
-        ckpt = torch.load(args.model_path)
+        ckpt = torch.load(args.model_path, map_location=device)
         if args.num_models > 1:
             for ensemble_model, state_dict in zip(model.models, ckpt["models"]):
                 ensemble_model.load_state_dict(state_dict)

@@ -83,6 +83,7 @@ def sample(env, policy, N_trajectories, interactive_robosuite=False):
         print("Press 'Z' to reset (and ignore) the current demonstration")
         print("Press Ctrl-C to quit + save all demos recorded so far.\n")
     try:
+        action_lim = env.action_space.high[0]
         for _ in range(N_trajectories):
             curr_obs = env.reset()
             obs = []
@@ -101,6 +102,7 @@ def sample(env, policy, N_trajectories, interactive_robosuite=False):
                         done = False
                         success = False
                         continue
+                action = torch.clamp(action, min=-action_lim, max=action_lim)
                 obs.append(torch.tensor(curr_obs).float())
                 act.append(action.float())
                 

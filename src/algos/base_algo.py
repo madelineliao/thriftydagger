@@ -106,20 +106,22 @@ class BaseAlgorithm:
 
     def _rollout(self, env, robosuite_cfg, trajectories_per_rollout, auto_only=False):
         data = []
+        action_lim = env.action_space.high[0]
         for j in range(trajectories_per_rollout):
             curr_obs, expert_mode = env.reset(), False
             done, success = False, False
             obs, act = [], []
             while not success and not done:
+                curr_obs = torch.tensor(curr_obs).float()
                 obs.append(curr_obs.cpu())
                 if expert_mode and not auto_only:
                     # Expert mode (either human or oracle algorithm)
                     a = self.expert_policy.act(curr_obs)
-                    # act = np.clip(act, -act_limit, act_limit) TODO: clip actions?
+                    a = torch.clamp(a, min=-action_lim, max=action_lim)
                     if self._switch_mode(act=a):
                         print("Switch to Robot")
                         expert_mode = False
-                    next_obs, success, done, _ = env.step(a)
+                    next_obs, success, done, _ = env.step(a.detach())
                 else:
                     switch_mode = (not auto_only) and self._switch_mode(act=None, robosuite_cfg=robosuite_cfg, env=env)
                     if switch_mode:
@@ -127,8 +129,9 @@ class BaseAlgorithm:
                         expert_mode = True
                         continue
                     a = self.model.get_action(curr_obs).to(self.device)
-                    next_obs, success, done, _ = env.step(a)
-                act.append(a.cpu())
+                    a = torch.clamp(a, min=-action_lim, max=action_lim)
+                    next_obs, success, done, _ = env.step(a.detach())
+                act.append(torch.tensor(a).float().cpu())
                 curr_obs = next_obs
 
             demo = {"obs": obs, "act": act, "success": success}
